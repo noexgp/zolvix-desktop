@@ -9,7 +9,32 @@ import { apiFetch } from '@/lib/api'
 import { db, isCacheExpired, setCacheMeta, invalidateCache } from '@/lib/db'
 import type { CachedProduct, CachedCustomer } from '@/lib/db'
 
+interface ApiProduct {
+  id: string
+  name: string
+  sku?: string
+  barcode?: string
+  unit?: string
+  price: number | string
+  stock?: number
+  categoryId?: string
+  isActive: boolean
+  updatedAt: string
+}
+
+interface ApiCustomer {
+  id: string
+  name: string
+  phone?: string
+  email?: string
+  address?: string
+  terms?: string
+  isActive: boolean
+  updatedAt: string
+}
+
 interface LineItem {
+  _key: string
   productId: string
   productName: string
   quantity: number
@@ -17,14 +42,21 @@ interface LineItem {
   total: number
 }
 
+function getManilaToday(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`
+}
+
 export default function NewSOPage() {
   const [customers, setCustomers] = useState<CachedCustomer[]>([])
   const [products, setProducts] = useState<CachedProduct[]>([])
   const [customerId, setCustomerId] = useState('')
-  const [orderDate, setOrderDate] = useState(new Date().toISOString().slice(0, 10))
+  const [orderDate, setOrderDate] = useState(getManilaToday)
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<LineItem[]>([])
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
@@ -38,8 +70,8 @@ export default function NewSOPage() {
         const res = await apiFetch('/api/products?limit=500&isActive=true')
         if (res.ok) {
           const data = await res.json()
-          const items: any[] = data.products ?? data
-          const mapped = items.map((p: any): CachedProduct => ({
+          const items: ApiProduct[] = data.products ?? data
+          const mapped = items.map((p): CachedProduct => ({
             id: p.id, name: p.name, sku: p.sku ?? '',
             barcode: p.barcode, unit: p.unit,
             price: Number(p.price), stock: p.stock ?? 0,
@@ -59,8 +91,8 @@ export default function NewSOPage() {
         const res = await apiFetch('/api/customer?limit=500&isActive=true')
         if (res.ok) {
           const data = await res.json()
-          const items: any[] = data.customers ?? data
-          const mapped = items.map((c: any): CachedCustomer => ({
+          const items: ApiCustomer[] = data.customers ?? data
+          const mapped = items.map((c): CachedCustomer => ({
             id: c.id, name: c.name, phone: c.phone ?? undefined, email: c.email ?? undefined,
             address: c.address ?? undefined, terms: c.terms ?? undefined,
             isActive: c.isActive, updatedAt: c.updatedAt,
@@ -72,18 +104,25 @@ export default function NewSOPage() {
         }
       }
     }
+
+    setLoading(true)
     loadRefData()
+      .catch(err => setError(err instanceof Error ? err.message : 'Failed to load reference data'))
+      .finally(() => setLoading(false))
   }, [])
 
   function addLine() {
-    setLines(prev => [...prev, { productId: '', productName: '', quantity: 1, unitPrice: 0, total: 0 }])
+    setLines(prev => [...prev, {
+      _key: crypto.randomUUID(),
+      productId: '', productName: '', quantity: 1, unitPrice: 0, total: 0,
+    }])
   }
 
   function removeLine(i: number) {
     setLines(prev => prev.filter((_, idx) => idx !== i))
   }
 
-  function updateLine(i: number, field: keyof LineItem, value: string | number) {
+  function updateLine(i: number, field: keyof Omit<LineItem, '_key'>, value: string | number) {
     setLines(prev => prev.map((l, idx) => {
       if (idx !== i) return l
       const updated = { ...l, [field]: value }
@@ -133,7 +172,12 @@ export default function NewSOPage() {
       await invalidateCache('salesOrders')
       if (submitAfter) {
         const soId = data.salesOrder?.id ?? data.id
-        await apiFetch(`/api/sales-orders/${soId}/submit`, { method: 'POST', body: '{}' })
+        if (!soId) throw new Error('Server did not return an order id')
+        const submitRes = await apiFetch(`/api/sales-orders/${soId}/submit`, { method: 'POST', body: '{}' })
+        if (!submitRes.ok) {
+          const d = await submitRes.json().catch(() => ({}))
+          throw new Error(d.error ?? 'Order created but submit failed')
+        }
       }
       navigate('/sales-orders')
     } catch (err: unknown) {
@@ -163,9 +207,10 @@ export default function NewSOPage() {
             id="customer"
             value={customerId}
             onChange={e => setCustomerId(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading}
+            className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            <option value="">Select customer...</option>
+            <option value="">{loading ? 'Loading...' : 'Select customer...'}</option>
             {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -220,20 +265,21 @@ export default function NewSOPage() {
         )}
 
         {lines.map((line, i) => (
-          <div key={i} className="grid grid-cols-12 gap-2 items-center bg-slate-800 rounded p-2">
+          <div key={line._key} className="grid grid-cols-12 gap-2 items-center bg-slate-800 rounded p-2">
             <select
               value={line.productId}
               onChange={e => updateLine(i, 'productId', e.target.value)}
-              className="col-span-5 bg-slate-700 border-0 text-white text-xs rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              disabled={loading}
+              className="col-span-5 bg-slate-700 border-0 text-white text-xs rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
             >
-              <option value="">Select product...</option>
+              <option value="">{loading ? 'Loading...' : 'Select product...'}</option>
               {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
             <Input
               type="number"
               value={line.quantity}
               min={1}
-              onChange={e => updateLine(i, 'quantity', Math.max(1, Number(e.target.value)))}
+              onChange={e => updateLine(i, 'quantity', parseFloat(e.target.value) || 0)}
               className="col-span-2 bg-slate-700 border-0 text-white text-xs h-7 text-center"
             />
             <Input
@@ -241,7 +287,7 @@ export default function NewSOPage() {
               value={line.unitPrice}
               min={0}
               step={0.01}
-              onChange={e => updateLine(i, 'unitPrice', Number(e.target.value))}
+              onChange={e => updateLine(i, 'unitPrice', parseFloat(e.target.value) || 0)}
               className="col-span-2 bg-slate-700 border-0 text-white text-xs h-7 text-right"
             />
             <span className="col-span-2 text-white text-xs text-right">₱{line.total.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
