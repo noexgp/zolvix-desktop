@@ -27,7 +27,7 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-40 bg-slate-950 flex flex-col shrink-0 h-screen">
+    <aside aria-label="Main navigation" className="w-40 bg-slate-950 flex flex-col shrink-0 h-screen">
       <div className="px-3 py-4 border-b border-slate-800">
         <div className="text-blue-400 font-bold text-sm">ZOLVIX</div>
         <div className="text-slate-500 text-xs">Desktop</div>
@@ -62,10 +62,10 @@ export default function Sidebar() {
         }>
           <Settings className="w-4 h-4" /> Settings
         </NavLink>
-        <div className="px-2 py-1.5 text-xs text-slate-500">{currentUser?.name}</div>
+        <div className="px-2 py-1.5 text-xs text-slate-500">{currentUser?.name || currentUser?.email}</div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400 hover:text-red-400 w-full rounded hover:bg-slate-800"
+          className="flex items-center gap-2 px-2 py-1.5 text-xs text-slate-400 hover:text-red-400 w-full rounded hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
         >
           <LogOut className="w-4 h-4" /> Sign out
         </button>
