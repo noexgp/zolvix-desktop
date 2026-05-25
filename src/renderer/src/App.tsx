@@ -1,7 +1,83 @@
-export default function App() {
+import { useEffect, useState } from 'react'
+import { MemoryRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
+import Sidebar from '@/components/Sidebar'
+import SetupPage from '@/pages/SetupPage'
+import LoginPage from '@/pages/LoginPage'
+import SalesOrdersPage from '@/pages/SalesOrdersPage'
+import InvoicesPage from '@/pages/InvoicesPage'
+import CustomersPage from '@/pages/CustomersPage'
+import ProductsPage from '@/pages/ProductsPage'
+import SettingsPage from '@/pages/SettingsPage'
+import NewSOPage from '@/pages/NewSOPage'
+import InvoiceDetailPage from '@/pages/InvoiceDetailPage'
+import { useAppStore } from '@/stores/appStore'
+import { getSession } from '@/lib/auth'
+import { apiFetch } from '@/lib/api'
+
+function AppLayout() {
   return (
-    <div className="bg-slate-900 text-white min-h-screen p-8">
-      <h1 className="text-2xl font-bold">Zolvix Desktop</h1>
+    <div className="flex h-screen bg-slate-900 text-white overflow-hidden">
+      <Sidebar />
+      <main className="flex-1 overflow-hidden">
+        <Outlet />
+      </main>
     </div>
+  )
+}
+
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { currentUser, setupComplete } = useAppStore()
+  if (!setupComplete) return <Navigate to="/setup" replace />
+  if (!currentUser) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
+export default function App() {
+  const { setCurrentUser, setSetupComplete, setServerUrl, setBusinessSettings } = useAppStore()
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    async function init() {
+      const url = await window.electron.store.get('serverUrl') as string
+      const setupDone = await window.electron.store.get('setupComplete') as boolean
+      if (url) setServerUrl(url)
+      if (setupDone) setSetupComplete(true)
+      if (setupDone && url) {
+        const user = await getSession()
+        if (user) {
+          setCurrentUser(user)
+          try {
+            const bRes = await apiFetch('/api/settings/business')
+            if (bRes.ok) {
+              const b = await bRes.json()
+              setBusinessSettings({ bypassApproval: b.bypassApproval ?? false, name: b.name ?? '' })
+            }
+          } catch { /* non-critical */ }
+        }
+      }
+      setReady(true)
+    }
+    init()
+  }, [])
+
+  if (!ready) return <div className="min-h-screen bg-slate-900" />
+
+  return (
+    <MemoryRouter>
+      <Routes>
+        <Route path="/setup" element={<SetupPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
+          <Route path="/sales-orders" element={<SalesOrdersPage />} />
+          <Route path="/sales-orders/new" element={<NewSOPage />} />
+          <Route path="/invoices" element={<InvoicesPage />} />
+          <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
+          <Route path="/customers" element={<CustomersPage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/sales-orders" replace />} />
+      </Routes>
+    </MemoryRouter>
   )
 }
