@@ -53,9 +53,19 @@ app.whenReady().then(() => {
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
 
-  // Store IPC handlers
-  ipcMain.handle('store:get', (_, key: string) => store.get(key))
-  ipcMain.handle('store:set', (_, key: string, value: unknown) => store.set(key, value))
+  // Store IPC handlers — key allowlist prevents arbitrary key read/write from renderer
+  const STORE_ALLOWED_KEYS = ['serverUrl', 'lx310PrinterName', 'formOffsets', 'setupComplete'] as const
+  type StoreKey = typeof STORE_ALLOWED_KEYS[number]
+
+  ipcMain.handle('store:get', (_, key: string) => {
+    if (!STORE_ALLOWED_KEYS.includes(key as StoreKey)) throw new Error(`Unknown store key: ${key}`)
+    return store.get(key as StoreKey)
+  })
+
+  ipcMain.handle('store:set', (_, key: string, value: unknown) => {
+    if (!STORE_ALLOWED_KEYS.includes(key as StoreKey)) throw new Error(`Unknown store key: ${key}`)
+    store.set(key as StoreKey, value as any)
+  })
 
   createWindow()
 

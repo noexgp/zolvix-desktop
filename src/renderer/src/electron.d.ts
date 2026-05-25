@@ -1,3 +1,4 @@
+// Bridge type declaration — keep in sync with src/electron-preload/index.d.ts
 export {}
 declare global {
   interface Window {

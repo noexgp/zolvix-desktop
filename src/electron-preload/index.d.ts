@@ -1,3 +1,4 @@
+// Bridge type declaration — keep in sync with src/renderer/src/electron.d.ts
 declare global {
   interface Window {
     electron: {
