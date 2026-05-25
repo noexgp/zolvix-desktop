@@ -4,6 +4,8 @@ export interface CachedProduct {
   id: string
   name: string
   sku: string
+  barcode?: string
+  unit?: string
   price: number
   stock: number
   categoryId: string
@@ -16,6 +18,7 @@ export interface CachedCustomer {
   name: string
   phone?: string
   email?: string
+  address?: string
   terms?: number
   isActive: boolean
   updatedAt: string
@@ -29,6 +32,8 @@ export interface CachedSO {
   customerId?: string
   customerName?: string
   orderDate: string
+  deliveryDate?: string
+  notes?: string
   updatedAt: string
 }
 
@@ -37,7 +42,7 @@ interface MetaEntry {
   value: string
 }
 
-class AppDB extends Dexie {
+export class AppDB extends Dexie {
   products!: Table<CachedProduct>
   customers!: Table<CachedCustomer>
   salesOrders!: Table<CachedSO>
@@ -46,10 +51,16 @@ class AppDB extends Dexie {
   constructor() {
     super('ZolvixDesktop')
     this.version(1).stores({
-      products: 'id, name, updatedAt',
-      customers: 'id, name, updatedAt',
+      products:    'id, name, updatedAt',
+      customers:   'id, name, updatedAt',
       salesOrders: 'id, status, updatedAt',
-      meta: 'key',
+      meta:        'key',
+    })
+    this.version(2).stores({
+      products:    'id, name, updatedAt',
+      customers:   'id, name, updatedAt',
+      salesOrders: 'id, soNumber, status, updatedAt',
+      meta:        'key',
     })
   }
 }

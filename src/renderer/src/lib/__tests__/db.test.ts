@@ -1,8 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import 'fake-indexeddb/auto'
-import { isCacheExpired, setCacheMeta, getCacheMeta } from '../db'
+import { db, isCacheExpired, setCacheMeta, getCacheMeta } from '../db'
 
 describe('cache TTL helpers', () => {
+  beforeEach(async () => {
+    await db.meta.clear()
+  })
+
   it('reports expired when no cache meta exists', async () => {
     const expired = await isCacheExpired('products', 5 * 60 * 1000)
     expect(expired).toBe(true)
