@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import SOListItem from '@/components/SOListItem'
 import PipelineStepper from '@/components/PipelineStepper'
 import DeliveryReceiptForm from '@/components/DeliveryReceiptForm'
@@ -57,7 +58,16 @@ export default function SalesOrdersPage() {
           updatedAt: s.updatedAt,
         })))
         await setCacheMeta('salesOrders')
-        setSoList(items)
+        setSoList(items.map((s: any) => ({
+          id: s.id,
+          soNumber: s.soNumber,
+          status: s.status,
+          totalAmount: Number(s.totalAmount),
+          customerName: s.customer?.name,
+          customerId: s.customerId,
+          orderDate: s.orderDate ?? s.createdAt,
+          updatedAt: s.updatedAt,
+        })))
       }
     } finally {
       setLoading(false)
@@ -86,18 +96,28 @@ export default function SalesOrdersPage() {
     const so = selectedSO?.salesOrder ?? selectedSO
     const id = so.id
     const endpoints: Record<string, string> = {
-      submit:    `/api/sales-orders/${id}/submit`,
-      approve:   `/api/sales-orders/${id}/approve`,
-      reject:    `/api/sales-orders/${id}/reject`,
-      invoice:   `/api/sales-orders/${id}/invoice`,
+      submit:  `/api/sales-orders/${id}/submit`,
+      approve: `/api/sales-orders/${id}/approve`,
+      reject:  `/api/sales-orders/${id}/reject`,
+      invoice: `/api/sales-orders/${id}/invoice`,
+      delete:  `/api/sales-orders/${id}`,
+      reopen:  `/api/sales-orders/${id}/reopen`,
     }
     const url = endpoints[action]
     if (!url) return
-    const res = await apiFetch(url, { method: 'POST', body: JSON.stringify({}) })
+    const method = action === 'delete' ? 'DELETE' : 'POST'
+    const res = await apiFetch(url, {
+      method,
+      body: method !== 'DELETE' ? JSON.stringify({}) : undefined,
+    })
     if (res.ok) {
       await invalidateCache('salesOrders')
-      fetchList(true)
-      fetchDetail(id)
+      if (action === 'delete') {
+        setSelectedId(null)
+        setSelectedSO(null)
+      }
+      await fetchList(true)
+      if (action !== 'delete') fetchDetail(id)
     }
   }
 
@@ -205,7 +225,18 @@ function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen
           <div className="text-white text-lg font-bold">{soNumber}</div>
           <div className="text-slate-400 text-xs">{customer?.name} · {new Date(so.orderDate ?? so.createdAt).toLocaleDateString('en-PH')}</div>
         </div>
-        <span className="text-xs px-2 py-1 rounded bg-amber-900/40 text-amber-400 font-medium capitalize">
+        <span className={cn(
+          'text-xs px-2 py-1 rounded font-medium capitalize',
+          {
+            'bg-slate-800 text-slate-400': status === 'draft',
+            'bg-amber-900/30 text-amber-400': status === 'pending_approval',
+            'bg-green-900/30 text-green-400': status === 'approved',
+            'bg-blue-900/30 text-blue-400': status === 'partially_delivered',
+            'bg-indigo-900/30 text-indigo-400': status === 'delivered',
+            'bg-purple-900/30 text-purple-400': status === 'invoiced',
+            'bg-red-900/30 text-red-400': status === 'rejected',
+          }
+        )}>
           {status?.replace(/_/g, ' ')}
         </span>
       </div>

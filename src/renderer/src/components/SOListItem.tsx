@@ -39,7 +39,7 @@ export default function SOListItem({ so, selected, onClick }: SOListItemProps) {
       onClick={onClick}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && onClick()}
+      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onClick()}
       className={cn(
         'px-3 py-2.5 cursor-pointer border-b border-slate-800 hover:bg-slate-800/60',
         selected && 'bg-blue-950/60 border-l-2 border-l-blue-500'
