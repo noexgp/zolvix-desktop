@@ -30,6 +30,7 @@ export default function SalesOrdersPage() {
   const [loading, setLoading] = useState(false)
   const [detailLoading, setDetailLoading] = useState(false)
   const [drOpen, setDrOpen] = useState(false)
+  const [actionError, setActionError] = useState('')
   const { businessSettings } = useAppStore()
   const navigate = useNavigate()
 
@@ -93,6 +94,7 @@ export default function SalesOrdersPage() {
 
   async function handleAction(action: string) {
     if (!selectedSO) return
+    setActionError('')
     const so = selectedSO?.salesOrder ?? selectedSO
     const id = so.id
     const endpoints: Record<string, string> = {
@@ -110,15 +112,18 @@ export default function SalesOrdersPage() {
       method,
       body: method !== 'DELETE' ? JSON.stringify({}) : undefined,
     })
-    if (res.ok) {
-      await invalidateCache('salesOrders')
-      if (action === 'delete') {
-        setSelectedId(null)
-        setSelectedSO(null)
-      }
-      await fetchList(true)
-      if (action !== 'delete') fetchDetail(id)
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}))
+      setActionError(e.error ?? `Failed to ${action}`)
+      return
     }
+    await invalidateCache('salesOrders')
+    if (action === 'delete') {
+      setSelectedId(null)
+      setSelectedSO(null)
+    }
+    await fetchList(true)
+    if (action !== 'delete') fetchDetail(id)
   }
 
   const filtered = activeTab ? soList.filter(s => s.status === activeTab) : soList
@@ -176,14 +181,21 @@ export default function SalesOrdersPage() {
         <div className="flex-1 overflow-y-auto p-4">
           {detailLoading && <div className="text-xs text-slate-500">Loading...</div>}
           {!detailLoading && soDetail && (
-            <SODetail
-              so={soDetail}
-              businessSettings={businessSettings}
-              onAction={handleAction}
-              onRefresh={() => fetchDetail(soDetail.id)}
-              drOpen={drOpen}
-              setDrOpen={setDrOpen}
-            />
+            <>
+              {actionError && (
+                <div className="mb-3 text-xs text-red-400 bg-red-900/20 border border-red-800 rounded px-3 py-2">
+                  {actionError}
+                </div>
+              )}
+              <SODetail
+                so={soDetail}
+                businessSettings={businessSettings}
+                onAction={handleAction}
+                onRefresh={() => fetchDetail(soDetail.id)}
+                drOpen={drOpen}
+                setDrOpen={setDrOpen}
+              />
+            </>
           )}
           {!detailLoading && !soDetail && (
             <div className="flex items-center justify-center h-full text-slate-600 text-sm">

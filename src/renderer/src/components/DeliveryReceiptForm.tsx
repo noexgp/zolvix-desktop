@@ -1,5 +1,5 @@
 // src/renderer/src/components/DeliveryReceiptForm.tsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,8 +30,20 @@ export default function DeliveryReceiptForm({ open, onClose, soId, details, onSu
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (!open) return
+    setLines(
+      Object.fromEntries(
+        details.map(d => [d.id, Math.max(0, d.quantity - d.deliveredQty)])
+      )
+    )
+    setError('')
+    setNotes('')
+  }, [open, soId])
+
   function setQty(detailId: string, val: number) {
-    const d = details.find(d => d.id === detailId)!
+    const d = details.find(d => d.id === detailId)
+    if (!d) return
     const max = d.quantity - d.deliveredQty
     setLines(prev => ({ ...prev, [detailId]: Math.min(Math.max(0, val), max) }))
   }
@@ -61,8 +73,8 @@ export default function DeliveryReceiptForm({ open, onClose, soId, details, onSu
       await invalidateCache('salesOrders')
       onSuccess()
       onClose()
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create DR')
     } finally {
       setSaving(false)
     }
