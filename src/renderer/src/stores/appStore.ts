@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { CurrentUser } from '@/lib/auth'
 
-interface BusinessSettings {
+export interface BusinessSettings {
   bypassApproval: boolean
   name: string
 }

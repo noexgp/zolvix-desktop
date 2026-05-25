@@ -21,14 +21,16 @@ export default function LoginPage() {
     try {
       const user = await login(email, password)
       setCurrentUser(user)
-      const bRes = await apiFetch('/api/settings/business')
-      if (bRes.ok) {
-        const bData = await bRes.json()
-        setBusinessSettings({
-          bypassApproval: bData.bypassApproval ?? false,
-          name: bData.name ?? '',
-        })
-      }
+      try {
+        const bRes = await apiFetch('/api/settings/business')
+        if (bRes.ok) {
+          const bData = await bRes.json()
+          setBusinessSettings({
+            bypassApproval: bData.bypassApproval ?? false,
+            name: bData.name ?? '',
+          })
+        }
+      } catch { /* non-critical — app works without business settings */ }
       navigate('/sales-orders')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -43,9 +45,11 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-white">Sign In</h1>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-slate-300">Email</Label>
+            <Label htmlFor="email" className="text-slate-300">Email</Label>
             <Input
+              id="email"
               type="email"
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="bg-slate-700 border-slate-600 text-white"
@@ -53,9 +57,11 @@ export default function LoginPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-slate-300">Password</Label>
+            <Label htmlFor="password" className="text-slate-300">Password</Label>
             <Input
+              id="password"
               type="password"
+              autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="bg-slate-700 border-slate-600 text-white"

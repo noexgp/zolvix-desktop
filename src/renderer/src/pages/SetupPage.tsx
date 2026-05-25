@@ -17,6 +17,11 @@ export default function SetupPage() {
     setError('')
     try {
       const trimmed = url.trim().replace(/\/$/, '')
+      if (!trimmed || trimmed === 'https:' || trimmed === 'https:/') {
+        setError('Please enter a valid server URL.')
+        setLoading(false)
+        return
+      }
       const res = await fetch(`${trimmed}/api/health`, { signal: AbortSignal.timeout(5000) })
       if (!res.ok) throw new Error('Server returned an error')
       await window.electron.store.set('serverUrl', trimmed)
@@ -39,8 +44,9 @@ export default function SetupPage() {
           <p className="text-slate-400 text-sm mt-1">Enter your server URL to get started.</p>
         </div>
         <div className="space-y-2">
-          <Label className="text-slate-300">Server URL</Label>
+          <Label htmlFor="server-url" className="text-slate-300">Server URL</Label>
           <Input
+            id="server-url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://yourvps.com"
