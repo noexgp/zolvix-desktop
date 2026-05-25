@@ -17,7 +17,13 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
       _refreshing = fetch(`${base}/api/auth/refresh`, {
         method: 'POST',
         credentials: 'include',
-      }).then(() => { _refreshing = null })
+      }).then(r => {
+        _refreshing = null
+        if (!r.ok) throw new Error('session_expired')
+      }).catch(err => {
+        _refreshing = null
+        throw err
+      })
     }
     await _refreshing
     return fetch(`${base}${path}`, {

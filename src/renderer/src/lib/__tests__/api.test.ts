@@ -46,4 +46,19 @@ describe('apiFetch', () => {
       expect.objectContaining({ method: 'POST' })
     )
   })
+
+  it('throws on failed refresh', async () => {
+    let callCount = 0
+    const fetchMock = vi.fn().mockImplementation((url: string) => {
+      callCount++
+      if (url.includes('/api/auth/refresh')) {
+        return Promise.resolve(new Response('{}', { status: 401 }))
+      }
+      return Promise.resolve(new Response('{}', { status: 401 }))
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const { apiFetch } = await import('../api')
+    await expect(apiFetch('/api/protected')).rejects.toThrow('session_expired')
+  })
 })
