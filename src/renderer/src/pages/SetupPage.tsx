@@ -22,35 +22,41 @@ export default function SetupPage() {
         setLoading(false)
         return
       }
-      const res = await fetch(`${trimmed}/api/health`, { signal: AbortSignal.timeout(5000) })
-      if (!res.ok) throw new Error('Server returned an error')
+      const result = await window.electron.server.checkHealth(trimmed)
+      if (!result.ok) {
+        const detail = result.error ?? `HTTP ${result.status}`
+        setError(`Cannot reach server: ${detail}`)
+        setLoading(false)
+        return
+      }
       await window.electron.store.set('serverUrl', trimmed)
       await window.electron.store.set('setupComplete', true)
       setServerUrl(trimmed)
       setSetupComplete(true)
       navigate('/login')
-    } catch {
-      setError('Cannot reach server. Check the URL and try again.')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      setError(`Cannot reach server: ${msg}`)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="bg-slate-800 rounded-xl p-8 w-full max-w-md space-y-6">
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-card rounded-xl p-8 w-full max-w-md space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Welcome to Zolvix Desktop</h1>
-          <p className="text-slate-400 text-sm mt-1">Enter your server URL to get started.</p>
+          <h1 className="text-2xl font-bold text-foreground">Welcome to Zolvix Desktop</h1>
+          <p className="text-muted-foreground text-sm mt-1">Enter your server URL to get started.</p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="server-url" className="text-slate-300">Server URL</Label>
+          <Label htmlFor="server-url" className="text-foreground">Server URL</Label>
           <Input
             id="server-url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://yourvps.com"
-            className="bg-slate-700 border-slate-600 text-white"
+            className="bg-muted border-border text-foreground"
           />
           {error && <p className="text-red-400 text-xs">{error}</p>}
         </div>

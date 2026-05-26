@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label'
 import { apiFetch } from '@/lib/api'
 import { invalidateCache } from '@/lib/db'
 
-interface SODetail { id: string; productId: string; productName: string; quantity: number; deliveredQty: number }
+interface SODetail { id: string; productId: string; productName: string; quantity: number; unitPrice: number; deliveredQty: number }
 
 interface Props {
   open: boolean
@@ -55,8 +55,8 @@ export default function DeliveryReceiptForm({ open, onClose, soId, details, onSu
         soDetailId: d.id,
         productId: d.productId,
         quantity: lines[d.id],
-        unitPrice: 0,
-        total: 0,
+        unitPrice: d.unitPrice,
+        total: lines[d.id] * d.unitPrice,
       }))
     if (submitLines.length === 0) { setError('Enter at least one quantity > 0.'); return }
     setSaving(true)
@@ -70,6 +70,13 @@ export default function DeliveryReceiptForm({ open, onClose, soId, details, onSu
         const d = await res.json().catch(() => ({}))
         throw new Error(d.error ?? 'Failed to create DR')
       }
+      const drData = await res.json().catch(() => ({}))
+      const drId = drData?.deliveryReceipt?.id
+      if (drId) {
+        // Auto-confirm the DR so deliveredQty updates and SO transitions to delivered.
+        // Silently skipped if the user lacks the ADMIN/MANAGER role — manager confirms manually.
+        await apiFetch(`/api/delivery-receipts/${drId}/confirm`, { method: 'POST' }).catch(() => {})
+      }
       await invalidateCache('salesOrders')
       onSuccess()
       onClose()
@@ -82,38 +89,38 @@ export default function DeliveryReceiptForm({ open, onClose, soId, details, onSu
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="bg-slate-900 text-white border-slate-700 max-w-lg">
+      <DialogContent className="bg-background text-foreground border-border max-w-lg">
         <DialogHeader>
           <DialogTitle>Record Delivery</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="delivery-date" className="text-slate-300 text-xs">Delivery Date</Label>
+            <Label htmlFor="delivery-date" className="text-foreground text-xs">Delivery Date</Label>
             <Input id="delivery-date" type="date" value={deliveryDate} onChange={e => setDeliveryDate(e.target.value)}
-              className="bg-slate-800 border-slate-700 text-white" />
+              className="bg-card border-border text-foreground" />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="delivery-notes" className="text-slate-300 text-xs">Notes</Label>
+            <Label htmlFor="delivery-notes" className="text-foreground text-xs">Notes</Label>
             <Input id="delivery-notes" value={notes} onChange={e => setNotes(e.target.value)}
-              placeholder="Optional notes..." className="bg-slate-800 border-slate-700 text-white" />
+              placeholder="Optional notes..." className="bg-card border-border text-foreground" />
           </div>
           <div className="space-y-2">
-            <div className="text-xs text-slate-400 grid grid-cols-3 gap-2 font-medium">
+            <div className="text-xs text-muted-foreground grid grid-cols-3 gap-2 font-medium">
               <span>Product</span><span className="text-center">Ordered / Delivered</span><span className="text-center">Deliver Qty</span>
             </div>
             {details.map(d => {
               const remaining = d.quantity - d.deliveredQty
               return (
-                <div key={d.id} className="grid grid-cols-3 gap-2 items-center bg-slate-800 rounded p-2 text-xs">
-                  <span className="text-slate-300 truncate">{d.productName}</span>
-                  <span className="text-center text-slate-400">{d.quantity} / {d.deliveredQty}</span>
+                <div key={d.id} className="grid grid-cols-3 gap-2 items-center bg-card rounded p-2 text-xs">
+                  <span className="text-foreground truncate">{d.productName}</span>
+                  <span className="text-center text-muted-foreground">{d.quantity} / {d.deliveredQty}</span>
                   <Input
                     aria-label={`Deliver quantity for ${d.productName}`}
                     type="number" min={0} max={remaining}
                     value={lines[d.id] ?? 0}
                     onChange={e => setQty(d.id, Number(e.target.value))}
                     disabled={remaining === 0}
-                    className="bg-slate-700 border-0 text-white h-7 text-xs"
+                    className="bg-muted border-0 text-foreground h-7 text-xs"
                   />
                 </div>
               )

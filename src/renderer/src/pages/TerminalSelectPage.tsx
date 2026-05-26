@@ -58,13 +58,13 @@ export default function TerminalSelectPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="bg-slate-800 rounded-xl p-8 w-full max-w-md space-y-6">
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-card rounded-xl p-8 w-full max-w-md space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Select Terminal</h1>
-          <p className="text-slate-400 text-sm mt-1">Choose which terminal this machine is.</p>
+          <h1 className="text-2xl font-bold text-foreground">Select Terminal</h1>
+          <p className="text-muted-foreground text-sm mt-1">Choose which terminal this machine is.</p>
         </div>
-        {loading && <p className="text-slate-400 text-sm">Loading terminals…</p>}
+        {loading && <p className="text-muted-foreground text-sm">Loading terminals…</p>}
         {error && <p className="text-red-400 text-xs">{error}</p>}
         <div className="space-y-2">
           {terminals.map(t => (
@@ -73,12 +73,12 @@ export default function TerminalSelectPage() {
               onClick={() => setSelected(t.id)}
               className={`w-full text-left rounded-lg px-4 py-3 border transition-colors ${
                 selected === t.id
-                  ? 'border-blue-500 bg-blue-900/30 text-white'
-                  : 'border-slate-700 bg-slate-700/50 text-slate-300 hover:border-slate-500'
+                  ? 'border-blue-500 bg-primary/15 text-foreground'
+                  : 'border-border bg-muted/50 text-foreground hover:border-border'
               }`}
             >
               <p className="font-medium">{t.name}</p>
-              {t.location && <p className="text-xs text-slate-400">{t.location}</p>}
+              {t.location && <p className="text-xs text-muted-foreground">{t.location}</p>}
             </button>
           ))}
         </div>

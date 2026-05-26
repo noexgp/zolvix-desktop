@@ -46,12 +46,12 @@ export default function InvoiceDetailPage() {
       .finally(() => setLoading(false))
   }, [id])
 
-  if (loading) return <div className="p-8 text-slate-500 text-sm">Loading...</div>
+  if (loading) return <div className="p-8 text-muted-foreground text-sm">Loading...</div>
   if (error) return <div className="p-8 text-red-400 text-sm">{error}</div>
   if (!invoice) return (
     <div className="p-8 space-y-2">
-      <div className="text-slate-400 text-sm">Invoice not found.</div>
-      <button onClick={() => navigate('/invoices')} className="text-blue-400 text-xs underline">← Back to Invoices</button>
+      <div className="text-muted-foreground text-sm">Invoice not found.</div>
+      <button onClick={() => navigate('/invoices')} className="text-primary text-xs underline">← Back to Invoices</button>
     </div>
   )
 
@@ -63,27 +63,27 @@ export default function InvoiceDetailPage() {
         <Button variant="ghost" size="sm" onClick={() => navigate('/invoices')} className="gap-1">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
-        <h1 className="text-white font-bold text-lg">{invoiceNumber}</h1>
-        <span className="text-xs px-2 py-0.5 rounded bg-blue-900/40 text-blue-400 capitalize">{status}</span>
+        <h1 className="text-foreground font-bold text-lg">{invoiceNumber}</h1>
+        <span className="text-xs px-2 py-0.5 rounded bg-primary/15 text-primary capitalize">{status}</span>
       </div>
 
-      <div className="text-slate-400 text-sm">{customer?.name ?? 'Walk-in'}</div>
+      <div className="text-muted-foreground text-sm">{customer?.name ?? 'Walk-in'}</div>
 
-      <div className="bg-slate-800 rounded-lg p-3 space-y-1">
+      <div className="bg-card rounded-lg p-3 space-y-1">
         {(details ?? []).map(d => (
           <div key={d.id} className="flex justify-between text-xs">
-            <span className="text-slate-300">{d.product?.name} × {d.quantity}</span>
-            <span className="text-white">₱{Number(d.total).toLocaleString()}</span>
+            <span className="text-foreground">{d.product?.name} × {d.quantity}</span>
+            <span className="text-foreground">₱{Number(d.total).toLocaleString()}</span>
           </div>
         ))}
-        <div className="border-t border-slate-700 pt-2 text-right text-xs font-bold text-white">
+        <div className="border-t border-border pt-2 text-right text-xs font-bold text-foreground">
           Total: ₱{Number(totalAmount).toLocaleString()}
         </div>
       </div>
 
       {/* 3 print buttons */}
       <div className="space-y-2">
-        <div className="text-slate-400 text-xs font-medium">Print Invoice</div>
+        <div className="text-muted-foreground text-xs font-medium">Print Invoice</div>
         {printError && <p className="text-red-400 text-xs">{printError}</p>}
         <div className="flex gap-2 flex-wrap">
           <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printLx310(invoice, 'preprinted').catch(e => setPrintError(e instanceof Error ? e.message : 'Print failed'))}>

@@ -54,7 +54,7 @@ export default function PipelineStepper({ status, bypassApproval }: PipelineStep
                 done   && !isRejected && 'bg-green-500 border-green-500 text-white',
                 active && !isRejected && 'bg-amber-500 border-amber-500 text-white',
                 active && isRejected  && 'bg-red-500 border-red-500 text-white',
-                !done && !active      && 'bg-slate-800 border-slate-600 text-slate-500'
+                !done && !active      && 'bg-card border-border text-muted-foreground'
               )}>
                 {done && !isRejected ? <Check className="w-3 h-3" /> : i + 1}
               </div>
@@ -63,7 +63,7 @@ export default function PipelineStepper({ status, bypassApproval }: PipelineStep
                 done   && !isRejected && 'text-green-400',
                 active && !isRejected && 'text-amber-400',
                 active && isRejected  && 'text-red-400',
-                !done && !active      && 'text-slate-600'
+                !done && !active      && 'text-muted-foreground'
               )}>
                 {step}
                 {active && isRejected && ' ✕'}
@@ -72,7 +72,7 @@ export default function PipelineStepper({ status, bypassApproval }: PipelineStep
             {!isLast && (
               <div className={cn(
                 'h-0.5 flex-1 mb-3 mx-1',
-                done && !isRejected ? 'bg-green-500' : 'bg-slate-700'
+                done && !isRejected ? 'bg-green-500' : 'bg-border'
               )} />
             )}
           </div>

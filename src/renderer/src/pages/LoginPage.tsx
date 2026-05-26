@@ -40,31 +40,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="bg-slate-800 rounded-xl p-8 w-full max-w-md space-y-6">
-        <h1 className="text-2xl font-bold text-white">Sign In</h1>
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="bg-card rounded-xl p-8 w-full max-w-md space-y-6">
+        <h1 className="text-2xl font-bold text-foreground">Sign In</h1>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-slate-300">Email</Label>
+            <Label htmlFor="email" className="text-foreground">Email</Label>
             <Input
               id="email"
               type="email"
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-muted border-border text-foreground"
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password" className="text-slate-300">Password</Label>
+            <Label htmlFor="password" className="text-foreground">Password</Label>
             <Input
               id="password"
               type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="bg-slate-700 border-slate-600 text-white"
+              className="bg-muted border-border text-foreground"
               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
             />
           </div>

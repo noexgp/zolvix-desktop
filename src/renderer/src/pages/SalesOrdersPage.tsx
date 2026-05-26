@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Pencil } from 'lucide-react'
 import { Plus, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { cn } from '@/lib/utils'
 import SOListItem from '@/components/SOListItem'
 import PipelineStepper from '@/components/PipelineStepper'
 import DeliveryReceiptForm from '@/components/DeliveryReceiptForm'
+import StatusBadge from '@/components/StatusBadge'
+import ErrorBanner from '@/components/ErrorBanner'
 import { apiFetch } from '@/lib/api'
 import { db, isCacheExpired, setCacheMeta, invalidateCache } from '@/lib/db'
 import { useAppStore } from '@/stores/appStore'
@@ -32,8 +34,19 @@ export default function SalesOrdersPage() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [drOpen, setDrOpen] = useState(false)
   const [actionError, setActionError] = useState('')
-  const { businessSettings } = useAppStore()
+  const { businessSettings, setBusinessSettings, currentUser } = useAppStore()
+  const [bypassApproval, setBypassApproval] = useState(false)
   const navigate = useNavigate()
+
+  // Fetch business settings fresh on every visit
+  useEffect(() => {
+    apiFetch('/api/settings/business').then(r => r.ok ? r.json() : null).then(b => {
+      if (!b) return
+      const bypass = !(b.requireSoApproval ?? true)
+      setBypassApproval(bypass)
+      setBusinessSettings({ bypassApproval: bypass, name: b.name ?? '' })
+    }).catch(() => {})
+  }, [setBusinessSettings])
 
   const fetchList = useCallback(async (forceRefresh = false) => {
     setLoading(true)
@@ -58,6 +71,7 @@ export default function SalesOrdersPage() {
           customerId: s.customerId,
           orderDate: s.orderDate ?? s.createdAt,
           updatedAt: s.updatedAt,
+          userId: s.userId,
         })))
         await setCacheMeta('salesOrders')
         setSoList(items.map((s: any) => ({
@@ -69,6 +83,7 @@ export default function SalesOrdersPage() {
           customerId: s.customerId,
           orderDate: s.orderDate ?? s.createdAt,
           updatedAt: s.updatedAt,
+          userId: s.userId,
         })))
       }
     } finally {
@@ -98,6 +113,27 @@ export default function SalesOrdersPage() {
     setActionError('')
     const so = selectedSO?.salesOrder ?? selectedSO
     const id = so.id
+
+    // Invoice: prefer DR-based endpoint (no SO status restriction) using the latest confirmed DR
+    if (action === 'invoice') {
+      const confirmedDr = (so.deliveryReceipts ?? []).find(
+        (dr: any) => dr.status === 'confirmed' && !dr.invoiceId
+      )
+      if (confirmedDr) {
+        const res = await apiFetch(`/api/delivery-receipts/${confirmedDr.id}/invoice`, { method: 'POST' })
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}))
+          setActionError(e.error ?? 'Failed to create invoice')
+          return
+        }
+        await invalidateCache('salesOrders')
+        await fetchList(true)
+        fetchDetail(id)
+        return
+      }
+      // Fallback: SO-based invoice (works when server allows 'delivered' status)
+    }
+
     const endpoints: Record<string, string> = {
       submit:  `/api/sales-orders/${id}/submit`,
       approve: `/api/sales-orders/${id}/approve`,
@@ -133,8 +169,8 @@ export default function SalesOrdersPage() {
   return (
     <div className="flex flex-col h-full">
       {/* Top bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-slate-800 bg-slate-900">
-        <span className="text-white font-semibold text-sm">Sales Orders</span>
+      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-background">
+        <span className="text-foreground font-semibold text-sm">Sales Orders</span>
         <div className="ml-auto flex gap-2">
           <Button size="sm" variant="outline" onClick={() => fetchList(true)} className="gap-1 text-xs h-7">
             <RefreshCw className="w-3 h-3" /> Sync
@@ -146,25 +182,33 @@ export default function SalesOrdersPage() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 px-3 py-1.5 border-b border-slate-800 overflow-x-auto">
-        {TABS.map(t => (
+      <div className="flex gap-1 px-3 py-1.5 border-b border-border overflow-x-auto">
+        {TABS.map(t => {
+          const count = t.key === '' ? soList.length : soList.filter(s => s.status === t.key).length
+          return (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`px-2.5 py-1 rounded-full text-[11px] whitespace-nowrap ${
-              activeTab === t.key ? 'bg-blue-900 text-blue-300' : 'text-slate-400 hover:text-white'
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] whitespace-nowrap ${
+              activeTab === t.key ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {t.label}
+            {count > 0 && (
+              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                activeTab === t.key ? 'bg-primary/30 text-primary' : 'bg-muted text-foreground'
+              }`}>{count}</span>
+            )}
           </button>
-        ))}
+          )
+        })}
       </div>
 
       {/* Split panel */}
       <div className="flex flex-1 overflow-hidden">
         {/* SO List */}
-        <div className="w-64 border-r border-slate-800 overflow-y-auto shrink-0">
-          {loading && <div className="p-4 text-xs text-slate-500">Loading...</div>}
+        <div className="w-64 border-r border-border overflow-y-auto shrink-0">
+          {loading && <div className="p-4 text-xs text-muted-foreground">Loading...</div>}
           {filtered.map(s => (
             <SOListItem
               key={s.id}
@@ -174,23 +218,20 @@ export default function SalesOrdersPage() {
             />
           ))}
           {!loading && filtered.length === 0 && (
-            <div className="p-4 text-xs text-slate-500">No sales orders found.</div>
+            <div className="p-4 text-xs text-muted-foreground">No sales orders found.</div>
           )}
         </div>
 
         {/* Detail Panel */}
         <div className="flex-1 overflow-y-auto p-4">
-          {detailLoading && <div className="text-xs text-slate-500">Loading...</div>}
+          {detailLoading && <div className="text-xs text-muted-foreground">Loading...</div>}
           {!detailLoading && soDetail && (
             <>
-              {actionError && (
-                <div className="mb-3 text-xs text-red-400 bg-red-900/20 border border-red-800 rounded px-3 py-2">
-                  {actionError}
-                </div>
-              )}
+              {actionError && <ErrorBanner message={actionError} className="mb-3" />}
               <SODetail
                 so={soDetail}
-                businessSettings={businessSettings}
+                businessSettings={{ ...(businessSettings ?? { name: '' }), bypassApproval }}
+                currentUser={currentUser}
                 onAction={handleAction}
                 onRefresh={() => fetchDetail(soDetail.id)}
                 drOpen={drOpen}
@@ -200,7 +241,7 @@ export default function SalesOrdersPage() {
             </>
           )}
           {!detailLoading && !soDetail && (
-            <div className="flex items-center justify-center h-full text-slate-600 text-sm">
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
               Select a sales order to view details
             </div>
           )}
@@ -213,6 +254,7 @@ export default function SalesOrdersPage() {
 interface SODetailProps {
   so: any
   businessSettings: any
+  currentUser: any
   onAction: (a: string) => void
   onRefresh: () => void
   drOpen: boolean
@@ -220,13 +262,14 @@ interface SODetailProps {
   setActionError: (msg: string) => void
 }
 
-function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen, setActionError }: SODetailProps) {
+function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOpen, setDrOpen, setActionError }: SODetailProps) {
   const { id, soNumber, status, customer, details, totalAmount } = so
+  const navigate = useNavigate()
 
   const actionMap: Record<string, { label: string; variant: string; action: string }[]> = {
     draft:               [{ label: 'Submit', variant: 'default', action: 'submit' }, { label: 'Delete', variant: 'destructive', action: 'delete' }],
     pending_approval:    [{ label: 'Approve', variant: 'default', action: 'approve' }, { label: 'Reject', variant: 'destructive', action: 'reject' }],
-    approved:            [{ label: 'Record Delivery', variant: 'default', action: 'dr' }],
+    approved:            [{ label: 'Record Delivery', variant: 'default', action: 'dr' }, ...(businessSettings?.bypassApproval ? [{ label: 'Reopen as Draft', variant: 'outline', action: 'reopen' }] : [])],
     partially_delivered: [{ label: 'Record Delivery', variant: 'default', action: 'dr' }],
     delivered:           [{ label: 'Convert to Invoice', variant: 'default', action: 'invoice' }],
     invoiced:            [],
@@ -237,47 +280,56 @@ function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen
     <div className="space-y-4">
       <div className="flex justify-between items-start">
         <div>
-          <div className="text-white text-lg font-bold">{soNumber}</div>
-          <div className="text-slate-400 text-xs">{customer?.name} · {new Date(so.orderDate ?? so.createdAt).toLocaleDateString('en-PH')}</div>
+          <div className="text-foreground text-lg font-bold">{soNumber}</div>
+          <div className="text-muted-foreground text-xs">{customer?.name} · {new Date(so.orderDate ?? so.createdAt).toLocaleDateString('en-PH')}</div>
         </div>
-        <span className={cn(
-          'text-xs px-2 py-1 rounded font-medium capitalize',
-          {
-            'bg-slate-800 text-slate-400': status === 'draft',
-            'bg-amber-900/30 text-amber-400': status === 'pending_approval',
-            'bg-green-900/30 text-green-400': status === 'approved',
-            'bg-blue-900/30 text-blue-400': status === 'partially_delivered',
-            'bg-indigo-900/30 text-indigo-400': status === 'delivered',
-            'bg-purple-900/30 text-purple-400': status === 'invoiced',
-            'bg-red-900/30 text-red-400': status === 'rejected',
-          }
-        )}>
-          {status?.replace(/_/g, ' ')}
-        </span>
+        <div className="text-right">
+          <div className="text-2xl font-bold text-green-400">₱{Number(totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+          <StatusBadge status={status} className="text-xs px-2 py-1" />
+        </div>
       </div>
 
       <PipelineStepper status={status} bypassApproval={businessSettings?.bypassApproval ?? false} />
 
       {/* Line items */}
-      <div className="bg-slate-800 rounded-lg p-3">
-        <div className="text-xs font-semibold text-white mb-2">Line Items</div>
-        <div className="grid grid-cols-4 gap-1 text-[10px] text-slate-500 pb-1 border-b border-slate-700 mb-1">
+      <div className="bg-card rounded-lg p-3">
+        <div className="text-xs font-semibold text-foreground mb-2">Line Items</div>
+        <div className="grid grid-cols-4 gap-1 text-[10px] text-muted-foreground pb-1 border-b border-border mb-1">
           <span className="col-span-2">Product</span><span className="text-center">Qty</span><span className="text-right">Total</span>
         </div>
         {(details ?? []).map((d: any) => (
           <div key={d.id} className="grid grid-cols-4 gap-1 text-xs py-0.5">
-            <span className="col-span-2 text-slate-300 truncate">{d.product?.name}</span>
-            <span className="text-center text-slate-400">{d.quantity}</span>
-            <span className="text-right text-white">₱{Number(d.total).toLocaleString()}</span>
+            <span className="col-span-2 text-foreground truncate">{d.product?.name}</span>
+            <span className="text-center text-muted-foreground">{d.quantity}</span>
+            <span className="text-right text-foreground">₱{Number(d.total).toLocaleString()}</span>
           </div>
         ))}
-        <div className="border-t border-slate-700 mt-2 pt-2 text-right text-xs font-bold text-white">
-          Total: ₱{Number(totalAmount).toLocaleString()}
-        </div>
+        {(() => {
+          const disc = Number(so.discount ?? 0)
+          const fee = Number(so.deliveryFee ?? 0)
+          const mode = so.discountMode === 'AMOUNT' ? 'AMOUNT' : 'PERCENT'
+          const linesTotal = (details ?? []).reduce((s: number, d: any) => s + Number(d.total), 0)
+          const discAmt = mode === 'AMOUNT' ? disc : linesTotal * (disc / 100)
+          return (
+            <div className="border-t border-border mt-2 pt-2 space-y-0.5 text-xs text-muted-foreground">
+              {disc > 0 && <>
+                <div className="flex justify-between"><span>Subtotal</span><span>₱{linesTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+                <div className="flex justify-between text-red-400"><span>Discount {mode === 'PERCENT' ? `(${disc}%)` : ''}</span><span>-₱{discAmt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+              </>}
+              {fee > 0 && <div className="flex justify-between"><span>Delivery Fee</span><span>₱{fee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>}
+              <div className="flex justify-between font-bold text-foreground pt-1"><span>Total</span><span>₱{Number(totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Actions */}
       <div className="flex gap-2 flex-wrap">
+        {(status === 'draft' || (status === 'approved' && (businessSettings?.bypassApproval ?? false))) && (!so.userId || so.userId === currentUser?.id) && (
+          <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => navigate(`/sales-orders/${id}/edit`)}>
+            <Pencil className="w-3 h-3" /> Edit
+          </Button>
+        )}
         {(actionMap[status] ?? []).map(({ label, variant, action }) => (
           <Button
             key={action}
@@ -304,6 +356,7 @@ function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen
           productId: d.productId,
           productName: d.product?.name ?? '',
           quantity: Number(d.quantity),
+          unitPrice: Number(d.unitPrice ?? 0),
           deliveredQty: Number(d.deliveredQty ?? 0),
         }))}
         onSuccess={onRefresh}

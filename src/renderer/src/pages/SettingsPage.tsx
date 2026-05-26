@@ -81,37 +81,37 @@ export default function SettingsPage() {
 
   return (
     <div className="p-8 max-w-lg space-y-8">
-      <h1 className="text-white font-bold text-xl">Settings</h1>
+      <h1 className="text-foreground font-bold text-xl">Settings</h1>
 
-      {loadError && <div className="bg-red-900/30 text-red-400 text-xs p-2 rounded">{loadError}</div>}
+      {loadError && <div className="bg-destructive/20 text-destructive text-xs p-2 rounded">{loadError}</div>}
 
       <div className="space-y-4">
-        <h2 className="text-slate-300 font-semibold text-sm border-b border-slate-700 pb-1">Server</h2>
+        <h2 className="text-foreground font-semibold text-sm border-b border-border pb-1">Server</h2>
         <div className="space-y-1">
-          <Label htmlFor="server-url" className="text-slate-400 text-xs">Server URL</Label>
+          <Label htmlFor="server-url" className="text-muted-foreground text-xs">Server URL</Label>
           <Input
             id="server-url"
             value={url}
             onChange={e => setUrl(e.target.value)}
             placeholder="https://your-server.com"
-            className="bg-slate-800 border-slate-700 text-white"
+            className="bg-card border-border text-foreground"
           />
         </div>
       </div>
 
       {terminalId && (
         <div className="space-y-4">
-          <h2 className="text-slate-300 font-semibold text-sm border-b border-slate-700 pb-1">
+          <h2 className="text-foreground font-semibold text-sm border-b border-border pb-1">
             LX-310 Printer
-            {terminalConfig && <span className="ml-2 text-slate-500 font-normal">({terminalConfig.name})</span>}
+            {terminalConfig && <span className="ml-2 text-muted-foreground font-normal">({terminalConfig.name})</span>}
           </h2>
           <div className="space-y-1">
-            <Label htmlFor="printer-select" className="text-slate-400 text-xs">Printer Name</Label>
+            <Label htmlFor="printer-select" className="text-muted-foreground text-xs">Printer Name</Label>
             <select
               id="printer-select"
               value={printerName}
               onChange={e => setPrinterName(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded p-2"
+              className="w-full bg-card border border-border text-foreground text-sm rounded p-2"
             >
               <option value="">Select printer...</option>
               {printers.map(p => <option key={p} value={p}>{p}</option>)}
@@ -119,39 +119,39 @@ export default function SettingsPage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
-              <Label htmlFor="row-offset" className="text-slate-400 text-xs">Pre-printed Form Row Offset</Label>
+              <Label htmlFor="row-offset" className="text-muted-foreground text-xs">Pre-printed Form Row Offset</Label>
               <Input id="row-offset" type="number" value={rowOffset}
                 onChange={e => setRowOffset(Number(e.target.value) || 0)}
-                className="bg-slate-800 border-slate-700 text-white" />
+                className="bg-card border-border text-foreground" />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="col-offset" className="text-slate-400 text-xs">Column Offset</Label>
+              <Label htmlFor="col-offset" className="text-muted-foreground text-xs">Column Offset</Label>
               <Input id="col-offset" type="number" value={colOffset}
                 onChange={e => setColOffset(Number(e.target.value) || 0)}
-                className="bg-slate-800 border-slate-700 text-white" />
+                className="bg-card border-border text-foreground" />
             </div>
           </div>
           <div className="space-y-1">
-            <Label className="text-slate-400 text-xs">Paper Size (inches)</Label>
+            <Label className="text-muted-foreground text-xs">Paper Size (inches)</Label>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="paper-width" className="text-slate-500 text-[10px]">Width</Label>
+                <Label htmlFor="paper-width" className="text-muted-foreground text-[10px]">Width</Label>
                 <Input id="paper-width" type="number" step="0.25" value={paperWidth}
                   onChange={e => setPaperWidth(parseFloat(e.target.value) || 8.5)}
-                  className="bg-slate-800 border-slate-700 text-white" />
+                  className="bg-card border-border text-foreground" />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="paper-height" className="text-slate-500 text-[10px]">Height</Label>
+                <Label htmlFor="paper-height" className="text-muted-foreground text-[10px]">Height</Label>
                 <Input id="paper-height" type="number" step="0.25" value={paperHeight}
                   onChange={e => setPaperHeight(parseFloat(e.target.value) || 11)}
-                  className="bg-slate-800 border-slate-700 text-white" />
+                  className="bg-card border-border text-foreground" />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {saveError && <div className="bg-red-900/30 text-red-400 text-xs p-2 rounded">{saveError}</div>}
+      {saveError && <div className="bg-destructive/20 text-destructive text-xs p-2 rounded">{saveError}</div>}
 
       <Button onClick={handleSave} className="w-full">
         {saved ? '✓ Saved' : 'Save Settings'}
