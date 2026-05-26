@@ -1,3 +1,7 @@
+// TODO: Register NotoSans font for ₱ peso sign rendering
+// Font.register({ family: 'NotoSans', src: '/path/to/NotoSans-Regular.ttf' })
+// Then change fontFamily: 'Helvetica' → 'NotoSans' throughout, and use ₱ instead of 'P'
+// Currently using 'P' as placeholder because Helvetica lacks the ₱ glyph
 import React from 'react'
 import { pdf, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
 
@@ -45,7 +49,7 @@ function InvoicePdf({ inv }: { inv: InvoiceDoc }) {
       <Page size="A4" style={styles.page}>
         <Text style={styles.header}>{inv.invoiceNumber}</Text>
         <Text style={styles.subheader}>
-          Customer: {inv.customer?.name ?? 'Walk-in'} · {new Date(inv.createdAt).toLocaleDateString('en-PH')}
+          Customer: {inv.customer?.name ?? 'Walk-in'} · {new Date(inv.createdAt).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila' })}
         </Text>
         <View style={styles.tableHeader}>
           <Text style={styles.col1}>Product</Text>
@@ -53,8 +57,8 @@ function InvoicePdf({ inv }: { inv: InvoiceDoc }) {
           <Text style={styles.col3}>Unit Price</Text>
           <Text style={styles.col4}>Total</Text>
         </View>
-        {(inv.details ?? []).map((d, i) => (
-          <View key={i} style={styles.row}>
+        {(inv.details ?? []).map(d => (
+          <View key={d.id} style={styles.row}>
             <Text style={styles.col1}>{d.product?.name ?? ''}</Text>
             <Text style={styles.col2}>{d.quantity}</Text>
             <Text style={styles.col3}>P{Number(d.unitPrice).toLocaleString()}</Text>
@@ -75,7 +79,10 @@ function SOPdf({ so }: { so: SODoc }) {
       <Page size="A4" style={styles.page}>
         <Text style={styles.header}>{so.soNumber}</Text>
         <Text style={styles.subheader}>
-          Customer: {so.customer?.name ?? '—'} · {new Date(so.orderDate ?? so.createdAt ?? '').toLocaleDateString('en-PH')}
+          Customer: {so.customer?.name ?? '—'} · {(() => {
+            const d = so.orderDate ?? so.createdAt
+            return d ? new Date(d).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila' }) : '—'
+          })()}
         </Text>
         <View style={styles.tableHeader}>
           <Text style={styles.col1}>Product</Text>
@@ -83,8 +90,8 @@ function SOPdf({ so }: { so: SODoc }) {
           <Text style={styles.col3}>Unit Price</Text>
           <Text style={styles.col4}>Total</Text>
         </View>
-        {(so.details ?? []).map((d, i) => (
-          <View key={i} style={styles.row}>
+        {(so.details ?? []).map(d => (
+          <View key={d.id} style={styles.row}>
             <Text style={styles.col1}>{d.product?.name ?? ''}</Text>
             <Text style={styles.col2}>{d.quantity}</Text>
             <Text style={styles.col3}>P{Number(d.unitPrice).toLocaleString()}</Text>
@@ -111,11 +118,21 @@ function openPdfBlob(blob: Blob, filename: string): void {
 }
 
 export async function printInvoicePdf(inv: InvoiceDoc): Promise<void> {
-  const blob = await pdf(<InvoicePdf inv={inv} />).toBlob()
-  openPdfBlob(blob, `${inv.invoiceNumber}.pdf`)
+  try {
+    const blob = await pdf(<InvoicePdf inv={inv} />).toBlob()
+    openPdfBlob(blob, `${inv.invoiceNumber}.pdf`)
+  } catch (err) {
+    console.error('Failed to generate invoice PDF:', err)
+    throw new Error('Could not generate PDF. See console for details.')
+  }
 }
 
 export async function printSOPdf(so: SODoc): Promise<void> {
-  const blob = await pdf(<SOPdf so={so} />).toBlob()
-  openPdfBlob(blob, `${so.soNumber}.pdf`)
+  try {
+    const blob = await pdf(<SOPdf so={so} />).toBlob()
+    openPdfBlob(blob, `${so.soNumber}.pdf`)
+  } catch (err) {
+    console.error('Failed to generate SO PDF:', err)
+    throw new Error('Could not generate PDF. See console for details.')
+  }
 }

@@ -195,6 +195,7 @@ export default function SalesOrdersPage() {
                 onRefresh={() => fetchDetail(soDetail.id)}
                 drOpen={drOpen}
                 setDrOpen={setDrOpen}
+                setActionError={setActionError}
               />
             </>
           )}
@@ -216,9 +217,10 @@ interface SODetailProps {
   onRefresh: () => void
   drOpen: boolean
   setDrOpen: (v: boolean) => void
+  setActionError: (msg: string) => void
 }
 
-function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen }: SODetailProps) {
+function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen, setActionError }: SODetailProps) {
   const { id, soNumber, status, customer, details, totalAmount } = so
 
   const actionMap: Record<string, { label: string; variant: string; action: string }[]> = {
@@ -287,7 +289,7 @@ function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen
             {label}
           </Button>
         ))}
-        <Button size="sm" variant="outline" className="text-xs" onClick={() => { printSOPdf(so).catch(e => console.error('PDF error:', e)) }}>
+        <Button size="sm" variant="outline" className="text-xs" onClick={() => { printSOPdf(so).catch(e => setActionError(e instanceof Error ? e.message : 'PDF generation failed')) }}>
           Print PDF
         </Button>
       </div>
