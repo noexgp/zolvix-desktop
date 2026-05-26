@@ -236,6 +236,20 @@ export default function NewSOPage() {
   const employeeItems = employees.map(e => ({ id: e.id, label: e.name }))
   const productItems = products.map(p => ({ id: p.id, label: p.name }))
 
+  // Keep a stable ref to handleSave so the keydown listener always calls the latest version
+  const handleSaveRef = useRef(handleSave)
+  useEffect(() => { handleSaveRef.current = handleSave })
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'F1') { e.preventDefault(); document.getElementById('customer')?.focus() }
+      if (e.key === 'F2') { e.preventDefault(); handleSaveRef.current(false) }
+      if (e.key === 'F3') { e.preventDefault(); handleSaveRef.current(true) }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   return (
     <div className="h-full overflow-y-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -255,7 +269,7 @@ export default function NewSOPage() {
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1">
-          <Label htmlFor="customer" className="text-foreground text-xs">Customer *</Label>
+          <Label htmlFor="customer" className="text-foreground text-xs">Customer * <span className="text-muted-foreground font-normal">[F1]</span></Label>
           <SearchableSelect
             id="customer"
             value={customerId}
@@ -476,10 +490,10 @@ export default function NewSOPage() {
 
       <div className="flex gap-2 pt-2 border-t border-border">
         <Button variant="outline" onClick={() => handleSave(false)} disabled={saving} className="text-foreground">
-          {saving ? 'Saving...' : 'Save as Draft'}
+          {saving ? 'Saving...' : 'Save as Draft'} <span className="ml-1 text-muted-foreground text-[10px] font-normal">[F2]</span>
         </Button>
         <Button onClick={() => handleSave(true)} disabled={saving}>
-          {saving ? 'Saving...' : 'Save & Submit'}
+          {saving ? 'Saving...' : 'Save & Submit'} <span className="ml-1 text-[10px] font-normal opacity-70">[F3]</span>
         </Button>
       </div>
     </div>
