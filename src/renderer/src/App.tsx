@@ -19,7 +19,7 @@ import { isCacheExpired, setCacheMeta, db } from '@/lib/db'
 
 function AppLayout() {
   return (
-    <div className="flex h-screen bg-slate-900 text-white overflow-hidden">
+    <div className="flex h-screen bg-background text-foreground overflow-hidden">
       <Sidebar />
       <main className="flex-1 overflow-hidden">
         <Outlet />
@@ -37,7 +37,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { setCurrentUser, setSetupComplete, setServerUrl, setBusinessSettings, setTerminalId, setTerminalConfig } = useAppStore()
+  const { setCurrentUser, setSetupComplete, setServerUrl, setBusinessSettings, setTerminalId, setTerminalConfig, setTheme, theme } = useAppStore()
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -45,6 +45,10 @@ export default function App() {
       const url = await window.electron.store.get('serverUrl') as string
       const setupDone = await window.electron.store.get('setupComplete') as boolean
       const storedTerminalId = await window.electron.store.get('terminalId') as string
+      const storedTheme = await window.electron.store.get('theme') as 'light' | 'dark' | undefined
+      const resolvedTheme = storedTheme ?? 'dark'
+      setTheme(resolvedTheme)
+      document.documentElement.classList.toggle('dark', resolvedTheme === 'dark')
       if (url) setServerUrl(url)
       if (setupDone) setSetupComplete(true)
       if (storedTerminalId) setTerminalId(storedTerminalId)
@@ -82,6 +86,10 @@ export default function App() {
     }
     init()
   }, [])
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+  }, [theme])
 
   useEffect(() => {
     async function refreshOnFocus() {
@@ -126,7 +134,7 @@ export default function App() {
     return () => window.removeEventListener('focus', refreshOnFocus)
   }, [])
 
-  if (!ready) return <div className="min-h-screen bg-slate-900" />
+  if (!ready) return <div className="min-h-screen bg-background" />
 
   return (
     <MemoryRouter>

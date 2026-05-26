@@ -4,6 +4,7 @@ interface StoreSchema {
   serverUrl: string
   setupComplete: boolean
   terminalId: string
+  theme: 'light' | 'dark'
 }
 
 export const store = new Store<StoreSchema>({
@@ -11,5 +12,6 @@ export const store = new Store<StoreSchema>({
     serverUrl: '',
     setupComplete: false,
     terminalId: '',
+    theme: 'dark',
   },
 })

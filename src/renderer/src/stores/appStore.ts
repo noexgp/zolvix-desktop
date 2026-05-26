@@ -23,12 +23,14 @@ interface AppStore {
   currentUser: CurrentUser | null
   businessSettings: BusinessSettings | null
   terminalConfig: TerminalConfig | null
+  theme: 'light' | 'dark'
   setServerUrl: (url: string) => void
   setSetupComplete: (v: boolean) => void
   setTerminalId: (id: string) => void
   setCurrentUser: (u: CurrentUser | null) => void
   setBusinessSettings: (s: BusinessSettings) => void
   setTerminalConfig: (c: TerminalConfig | null) => void
+  setTheme: (t: 'light' | 'dark') => void
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -38,10 +40,12 @@ export const useAppStore = create<AppStore>((set) => ({
   currentUser: null,
   businessSettings: null,
   terminalConfig: null,
+  theme: 'dark',
   setServerUrl: (serverUrl) => set({ serverUrl }),
   setSetupComplete: (setupComplete) => set({ setupComplete }),
   setTerminalId: (terminalId) => set({ terminalId }),
   setCurrentUser: (currentUser) => set({ currentUser }),
   setBusinessSettings: (businessSettings) => set({ businessSettings }),
   setTerminalConfig: (terminalConfig) => set({ terminalConfig }),
+  setTheme: (theme) => set({ theme }),
 }))

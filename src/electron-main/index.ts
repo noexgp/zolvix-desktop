@@ -80,7 +80,7 @@ app.whenReady().then(() => {
   })
 
   // Store IPC handlers — key allowlist prevents arbitrary key read/write from renderer
-  const STORE_ALLOWED_KEYS = ['serverUrl', 'setupComplete', 'terminalId'] as const
+  const STORE_ALLOWED_KEYS = ['serverUrl', 'setupComplete', 'terminalId', 'theme'] as const
   type StoreKey = typeof STORE_ALLOWED_KEYS[number]
 
   ipcMain.handle('store:get', (_, key: string) => {
