@@ -13,6 +13,7 @@ import InvoiceDetailPage from '@/pages/InvoiceDetailPage'
 import { useAppStore } from '@/stores/appStore'
 import { getSession } from '@/lib/auth'
 import { apiFetch } from '@/lib/api'
+import { isCacheExpired, setCacheMeta, db } from '@/lib/db'
 
 function AppLayout() {
   return (
@@ -58,6 +59,47 @@ export default function App() {
       setReady(true)
     }
     init()
+  }, [])
+
+  useEffect(() => {
+    async function refreshOnFocus() {
+      try {
+
+        if (await isCacheExpired('products', 5 * 60 * 1000)) {
+          const res = await apiFetch('/api/products?limit=500&isActive=true')
+          if (res.ok) {
+            const data = await res.json()
+            const items: Array<{ id: string; name: string; sku?: string; barcode?: string; unit?: string; price: number | string; stock?: number; categoryId?: string; isActive: boolean; updatedAt: string }> = Array.isArray(data) ? data : (data.products ?? [])
+            await db.products.clear()
+            await db.products.bulkPut(items.map(p => ({
+              id: p.id, name: p.name, sku: p.sku ?? '', barcode: p.barcode ?? '', unit: p.unit ?? '',
+              price: Number(p.price), stock: p.stock ?? 0,
+              categoryId: p.categoryId ?? '', isActive: p.isActive, updatedAt: p.updatedAt,
+            })))
+            await setCacheMeta('products')
+          }
+        }
+
+        if (await isCacheExpired('customers', 5 * 60 * 1000)) {
+          const res = await apiFetch('/api/customer?limit=500')
+          if (res.ok) {
+            const data = await res.json()
+            const items: Array<{ id: string; name: string; phone?: string; email?: string; address?: string; terms?: number; isActive: boolean; updatedAt: string }> = Array.isArray(data) ? data : (data.customers ?? [])
+            await db.customers.clear()
+            await db.customers.bulkPut(items.map(c => ({
+              id: c.id, name: c.name, phone: c.phone ?? '', email: c.email ?? '',
+              address: c.address ?? '', terms: c.terms, isActive: c.isActive, updatedAt: c.updatedAt,
+            })))
+            await setCacheMeta('customers')
+          }
+        }
+      } catch {
+        // Background refresh — silently ignore errors
+      }
+    }
+
+    window.addEventListener('focus', refreshOnFocus)
+    return () => window.removeEventListener('focus', refreshOnFocus)
   }, [])
 
   if (!ready) return <div className="min-h-screen bg-slate-900" />
