@@ -1,10 +1,8 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Pencil } from 'lucide-react'
-import { Plus, RefreshCw } from 'lucide-react'
+import { Pencil, Plus, RefreshCw, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import SOListItem from '@/components/SOListItem'
-import PipelineStepper from '@/components/PipelineStepper'
 import DeliveryReceiptForm from '@/components/DeliveryReceiptForm'
 import StatusBadge from '@/components/StatusBadge'
 import ErrorBanner from '@/components/ErrorBanner'
@@ -276,77 +274,209 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
     rejected:            [{ label: 'Reopen as Draft', variant: 'outline', action: 'reopen' }],
   }
 
+  const linesTotal = (details ?? []).reduce((s: number, d: any) => s + Number(d.total), 0)
+  const disc = Number(so.discount ?? 0)
+  const fee = Number(so.deliveryFee ?? 0)
+  const discMode = so.discountMode === 'AMOUNT' ? 'AMOUNT' : 'PERCENT'
+  const discAmt = discMode === 'AMOUNT' ? disc : linesTotal * (disc / 100)
+
+  const formatDate = (v: string | null | undefined) =>
+    v ? new Date(v).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+
+  const totalDelivered = (so.deliveryReceipts ?? []).reduce((s: number, dr: any) => s + Number(dr.totalAmount ?? 0), 0)
+
+  const canEdit = (status === 'draft' || (status === 'approved' && (businessSettings?.bypassApproval ?? false))) &&
+    (!so.userId || so.userId === currentUser?.id)
+
+  const actions = actionMap[status] ?? []
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-start">
-        <div>
-          <div className="text-foreground text-lg font-bold">{soNumber}</div>
-          <div className="text-muted-foreground text-xs">{customer?.name} · {new Date(so.orderDate ?? so.createdAt).toLocaleDateString('en-PH')}</div>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold text-green-400">₱{Number(totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
-          <StatusBadge status={status} className="text-xs px-2 py-1" />
+    <div className="space-y-3 pb-6">
+
+      {/* ── Header ── */}
+      <div className="bg-card border border-border rounded-lg p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-xl font-bold text-foreground">{soNumber}</div>
+            <div className="mt-1.5">
+              <StatusBadge status={status} />
+            </div>
+          </div>
+          {/* Action buttons compact */}
+          <div className="flex items-center gap-1.5 flex-wrap justify-end">
+            {canEdit && (
+              <Button size="sm" variant="outline" className="text-xs gap-1 h-7" onClick={() => navigate(`/sales-orders/${id}/edit`)}>
+                <Pencil className="w-3 h-3" /> Edit
+              </Button>
+            )}
+            {actions.map(({ label, variant, action }) => (
+              <Button key={action} size="sm" variant={variant as any}
+                className="text-xs h-7"
+                onClick={() => action === 'dr' ? setDrOpen(true) : onAction(action)}>
+                {label}
+              </Button>
+            ))}
+            <Button size="sm" variant="outline" className="text-xs h-7"
+              onClick={() => { printSOPdf(so).catch(e => setActionError(e instanceof Error ? e.message : 'PDF failed')) }}>
+              PDF
+            </Button>
+            <button onClick={onRefresh} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <PipelineStepper status={status} bypassApproval={businessSettings?.bypassApproval ?? false} />
-
-      {/* Line items */}
-      <div className="bg-card rounded-lg p-3">
-        <div className="text-xs font-semibold text-foreground mb-2">Line Items</div>
-        <div className="grid grid-cols-4 gap-1 text-[10px] text-muted-foreground pb-1 border-b border-border mb-1">
-          <span className="col-span-2">Product</span><span className="text-center">Qty</span><span className="text-right">Total</span>
+      {/* ── Order Info ── */}
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border">
+          <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">Order Info</span>
         </div>
-        {(details ?? []).map((d: any) => (
-          <div key={d.id} className="grid grid-cols-4 gap-1 text-xs py-0.5">
-            <span className="col-span-2 text-foreground truncate">{d.product?.name}</span>
-            <span className="text-center text-muted-foreground">{d.quantity}</span>
-            <span className="text-right text-foreground">₱{Number(d.total).toLocaleString()}</span>
+        {[
+          ['Customer',      customer?.name ?? '—'],
+          ['Sales Agent',   so.employee?.name ?? '—'],
+          ['Order Date',    formatDate(so.orderDate ?? so.createdAt)],
+          ['Delivery Date', formatDate(so.deliveryDate)],
+          ['Approved By',   so.approvedBy?.name ?? '—'],
+        ].map(([label, value]) => (
+          <div key={label as string} className="flex justify-between items-center px-4 py-2.5 border-b border-border last:border-0">
+            <span className="text-sm text-muted-foreground">{label}</span>
+            <span className="text-sm font-semibold text-foreground text-right">{value}</span>
           </div>
         ))}
-        {(() => {
-          const disc = Number(so.discount ?? 0)
-          const fee = Number(so.deliveryFee ?? 0)
-          const mode = so.discountMode === 'AMOUNT' ? 'AMOUNT' : 'PERCENT'
-          const linesTotal = (details ?? []).reduce((s: number, d: any) => s + Number(d.total), 0)
-          const discAmt = mode === 'AMOUNT' ? disc : linesTotal * (disc / 100)
-          return (
-            <div className="border-t border-border mt-2 pt-2 space-y-0.5 text-xs text-muted-foreground">
-              {disc > 0 && <>
-                <div className="flex justify-between"><span>Subtotal</span><span>₱{linesTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
-                <div className="flex justify-between text-red-400"><span>Discount {mode === 'PERCENT' ? `(${disc}%)` : ''}</span><span>-₱{discAmt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
-              </>}
-              {fee > 0 && <div className="flex justify-between"><span>Delivery Fee</span><span>₱{fee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>}
-              <div className="flex justify-between font-bold text-foreground pt-1"><span>Total</span><span>₱{Number(totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span></div>
+      </div>
+
+      {/* ── Items ── */}
+      <div className="bg-card border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border">
+          <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
+            Items ({(details ?? []).length})
+          </span>
+        </div>
+        {/* Column headers */}
+        <div className="grid grid-cols-[1fr_48px_80px_72px] px-4 py-2 border-b border-border">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Product</span>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Qty</span>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Unit Price</span>
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide text-right">Total</span>
+        </div>
+        {/* Line items */}
+        {(details ?? []).map((d: any, i: number) => (
+          <div key={d.id ?? i} className="grid grid-cols-[1fr_48px_80px_72px] px-4 py-2.5 border-b border-border">
+            <div>
+              <div className="text-sm font-semibold text-foreground leading-tight">{d.product?.name ?? '—'}</div>
+              {d.product?.sku && <div className="text-xs text-muted-foreground mt-0.5">{d.product.sku}</div>}
             </div>
-          )
-        })()}
-      </div>
-
-      {/* Actions */}
-      <div className="flex gap-2 flex-wrap">
-        {(status === 'draft' || (status === 'approved' && (businessSettings?.bypassApproval ?? false))) && (!so.userId || so.userId === currentUser?.id) && (
-          <Button size="sm" variant="outline" className="text-xs gap-1" onClick={() => navigate(`/sales-orders/${id}/edit`)}>
-            <Pencil className="w-3 h-3" /> Edit
-          </Button>
-        )}
-        {(actionMap[status] ?? []).map(({ label, variant, action }) => (
-          <Button
-            key={action}
-            size="sm"
-            variant={variant as any}
-            onClick={() => action === 'dr' ? setDrOpen(true) : onAction(action)}
-            className="text-xs"
-          >
-            {label}
-          </Button>
+            <span className="text-sm text-muted-foreground text-right self-center">{d.quantity}</span>
+            <span className="text-sm text-muted-foreground text-right self-center">₱{Number(d.unitPrice ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+            <span className="text-sm font-bold text-foreground text-right self-center">₱{Number(d.total).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+          </div>
         ))}
-        <Button size="sm" variant="outline" className="text-xs" onClick={() => { printSOPdf(so).catch(e => setActionError(e instanceof Error ? e.message : 'PDF generation failed')) }}>
-          Print PDF
-        </Button>
+        {/* Totals */}
+        <div className="px-4 py-3 space-y-1.5">
+          {disc > 0 && <>
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Subtotal</span>
+              <span>₱{linesTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+            </div>
+            <div className="flex justify-between text-sm text-red-500">
+              <span>Discount{discMode === 'PERCENT' ? ` (${disc}%)` : ''}</span>
+              <span>-₱{discAmt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+            </div>
+          </>}
+          {fee > 0 && (
+            <div className="flex justify-between text-sm text-muted-foreground">
+              <span>Delivery Fee</span>
+              <span>₱{fee.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+            </div>
+          )}
+          {disc > 0 && (
+            <div className="flex justify-between text-sm text-muted-foreground border-t border-border pt-1.5">
+              <span>Subtotal</span>
+              <span>₱{linesTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+            </div>
+          )}
+          <div className="flex justify-between items-center border-t border-border pt-1.5">
+            <span className="text-sm font-bold text-foreground">Grand Total</span>
+            <span className="text-base font-bold text-primary">₱{Number(totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+          </div>
+        </div>
       </div>
 
-      {/* DR dialog — rendered here so it has access to details */}
+      {/* ── Delivery Receipts ── */}
+      {(so.deliveryReceipts ?? []).length > 0 && (
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border">
+            <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
+              Delivery Receipts ({(so.deliveryReceipts ?? []).length})
+            </span>
+          </div>
+          <div className="divide-y divide-border">
+            {(so.deliveryReceipts ?? []).map((dr: any) => (
+              <div key={dr.id} className="flex items-center gap-3 px-4 py-3">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${dr.status === 'confirmed' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground">{dr.drNumber}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {dr.warehouse?.name ?? 'Default warehouse'}
+                    {dr.invoice?.invoiceNumber && (
+                      <span className="text-primary ml-1">{dr.invoice.invoiceNumber}</span>
+                    )}
+                  </div>
+                </div>
+                <StatusBadge status={dr.status} className="text-[10px]" />
+                <span className="text-sm font-semibold text-foreground shrink-0">
+                  ₱{Number(dr.totalAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+                <ExternalLink className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between px-4 py-2.5 border-t border-border text-sm">
+            <span className="text-muted-foreground">Total delivered</span>
+            <span className="font-semibold text-green-600 dark:text-green-400">
+              ₱{totalDelivered.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* ── Invoices ── */}
+      {(so.invoices ?? []).length > 0 && (
+        <div className="bg-card border border-border rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border">
+            <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
+              Invoices ({(so.invoices ?? []).length})
+            </span>
+          </div>
+          <div className="divide-y divide-border">
+            {(so.invoices ?? []).map((inv: any) => (
+              <div key={inv.id} className="flex items-center gap-3 px-4 py-3">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${inv.void ? 'bg-muted-foreground' : inv.status === 'paid' ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-foreground">{inv.invoiceNumber}</div>
+                  {Number(inv.balance ?? 0) > 0 && (
+                    <div className="text-xs text-primary">Balance: ₱{Number(inv.balance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground capitalize shrink-0">{inv.void ? 'Void' : inv.status}</span>
+                <span className="text-sm font-semibold text-foreground shrink-0">
+                  ₱{Number(inv.totalAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                </span>
+                <button
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
+                  onClick={() => navigate(`/invoices/${inv.id}`)}
+                  title="View invoice"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── DR dialog ── */}
       <DeliveryReceiptForm
         open={drOpen}
         onClose={() => setDrOpen(false)}
