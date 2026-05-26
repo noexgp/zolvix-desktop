@@ -23,7 +23,10 @@ export default function InvoicesPage() {
         if (!r.ok) throw new Error('Failed to load invoices')
         return r.json()
       })
-      .then(d => setInvoices(d.invoices ?? d))
+      .then(d => {
+        const list = Array.isArray(d) ? d : Array.isArray(d.invoices) ? d.invoices : []
+        setInvoices(list)
+      })
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load invoices'))
       .finally(() => setLoading(false))
   }, [])
@@ -43,7 +46,12 @@ export default function InvoicesPage() {
               role="button"
               tabIndex={0}
               onClick={() => navigate(`/invoices/${inv.id}`)}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') navigate(`/invoices/${inv.id}`) }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  navigate(`/invoices/${inv.id}`)
+                }
+              }}
               className="flex items-center justify-between bg-slate-800 rounded px-3 py-2 cursor-pointer hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <div>

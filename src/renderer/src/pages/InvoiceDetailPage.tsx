@@ -30,6 +30,7 @@ export default function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [printError, setPrintError] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -40,14 +41,19 @@ export default function InvoiceDetailPage() {
         if (!r.ok) throw new Error('Failed to load invoice')
         return r.json()
       })
-      .then(d => setInvoice(d.invoice ?? d))
+      .then(d => setInvoice(d.invoice ?? (d.id ? d : null)))
       .catch(err => setError(err instanceof Error ? err.message : 'Failed to load invoice'))
       .finally(() => setLoading(false))
   }, [id])
 
   if (loading) return <div className="p-8 text-slate-500 text-sm">Loading...</div>
   if (error) return <div className="p-8 text-red-400 text-sm">{error}</div>
-  if (!invoice) return null
+  if (!invoice) return (
+    <div className="p-8 space-y-2">
+      <div className="text-slate-400 text-sm">Invoice not found.</div>
+      <button onClick={() => navigate('/invoices')} className="text-blue-400 text-xs underline">← Back to Invoices</button>
+    </div>
+  )
 
   const { invoiceNumber, customer, details, totalAmount, status } = invoice
 
@@ -78,14 +84,15 @@ export default function InvoiceDetailPage() {
       {/* 3 print buttons */}
       <div className="space-y-2">
         <div className="text-slate-400 text-xs font-medium">Print Invoice</div>
+        {printError && <p className="text-red-400 text-xs">{printError}</p>}
         <div className="flex gap-2 flex-wrap">
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printLx310(invoice, 'preprinted')}>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printLx310(invoice, 'preprinted').catch(e => setPrintError(e instanceof Error ? e.message : 'Print failed'))}>
             <Printer className="w-3.5 h-3.5" /> Pre-printed Form
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printLx310(invoice, 'plain')}>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printLx310(invoice, 'plain').catch(e => setPrintError(e instanceof Error ? e.message : 'Print failed'))}>
             <Printer className="w-3.5 h-3.5" /> Plain LX-310
           </Button>
-          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printInvoicePdf(invoice)}>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printInvoicePdf(invoice).catch(e => setPrintError(e instanceof Error ? e.message : 'Print failed'))}>
             <FileText className="w-3.5 h-3.5" /> PDF
           </Button>
         </div>
