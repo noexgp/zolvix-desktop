@@ -1,6 +1,7 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { store } from './store'
 import { buildEscpPreprinted, buildEscpPlain } from './escp-builder'
@@ -98,6 +99,24 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+
+  // Check for updates after window is ready
+  try {
+    autoUpdater.checkForUpdatesAndNotify()
+  } catch {
+    // Not available in dev mode
+  }
+
+  autoUpdater.on('update-downloaded', () => {
+    dialog.showMessageBox({
+      type: 'info',
+      title: 'Update Ready',
+      message: 'A new version has been downloaded. Restart now to apply the update.',
+      buttons: ['Restart', 'Later'],
+    }).then(({ response }) => {
+      if (response === 0) autoUpdater.quitAndInstall()
+    })
+  })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

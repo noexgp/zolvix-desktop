@@ -19,6 +19,9 @@
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "electron-vite build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
+    "dist": "electron-vite build && electron-builder",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:mac": "electron-vite build && electron-builder --mac",
     "test": "vitest"
   },
   "dependencies": {
@@ -30,6 +33,7 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@radix-ui/react-tabs": "^1.1.13",
     "@react-pdf/renderer": "^4.5.1",
+    "@thiagoelg/node-printer": "^0.6.2",
     "electron-store": "^8.2.0",
     "electron-updater": "^6.8.3",
     "sonner": "^2.0.7"
