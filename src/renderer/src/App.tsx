@@ -63,6 +63,7 @@ export default function App() {
 
   useEffect(() => {
     async function refreshOnFocus() {
+      if (!useAppStore.getState().currentUser) return
       try {
 
         if (await isCacheExpired('products', 5 * 60 * 1000)) {
