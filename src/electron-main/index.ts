@@ -3,6 +3,15 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { store } from './store'
+import { buildEscpPreprinted, buildEscpPlain } from './escp-builder'
+
+// Conditional import for @thiagoelg/node-printer (native module — may not be compiled on dev machine)
+let printerModule: typeof import('@thiagoelg/node-printer') | null = null
+try {
+  printerModule = require('@thiagoelg/node-printer')
+} catch {
+  console.warn('[zolvix-desktop] @thiagoelg/node-printer not available — printing disabled')
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -65,6 +74,30 @@ app.whenReady().then(() => {
   ipcMain.handle('store:set', (_, key: string, value: unknown) => {
     if (!STORE_ALLOWED_KEYS.includes(key as StoreKey)) throw new Error(`Unknown store key: ${key}`)
     store.set(key as StoreKey, value as any)
+  })
+
+  ipcMain.handle('print:getPrinters', () => {
+    if (!printerModule) return []
+    return printerModule.getPrinters().map((p: { name: string }) => p.name)
+  })
+
+  ipcMain.handle('print:lx310', async (_event, { data, mode }: { data: unknown; mode: 'preprinted' | 'plain' }) => {
+    if (!printerModule) throw new Error('Printer module not available on this machine. Reinstall on Windows.')
+    const printerName = store.get('lx310PrinterName') as string
+    if (!printerName) throw new Error('Printer not configured. Go to Settings to select your LX-310 printer.')
+    const offsets = store.get('formOffsets') as { row: number; col: number }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const invoiceData = data as any
+    const buffer = mode === 'preprinted' ? buildEscpPreprinted(invoiceData, offsets) : buildEscpPlain(invoiceData)
+    return new Promise<void>((resolve, reject) => {
+      printerModule!.printDirect({
+        data: buffer,
+        printer: printerName,
+        type: 'RAW',
+        success: () => resolve(),
+        error: (err: unknown) => reject(new Error(String(err))),
+      })
+    })
   })
 
   createWindow()

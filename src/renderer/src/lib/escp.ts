@@ -1,4 +1,4 @@
-// stub — full implementation in Task 14
-export async function printLx310(_invoice: unknown, _mode: 'preprinted' | 'plain'): Promise<void> {
-  alert('LX-310 printing not yet implemented')
+// src/renderer/src/lib/escp.ts
+export async function printLx310(invoice: unknown, mode: 'preprinted' | 'plain'): Promise<void> {
+  await window.electron.print.lx310({ data: invoice, mode })
 }

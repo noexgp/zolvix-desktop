@@ -1,0 +1,90 @@
+// src/electron-main/escp-builder.ts
+
+const ESC = 0x1b
+const CR = 0x0d
+const LF = 0x0a
+const FF = 0x0c  // Form feed / page eject
+
+function strBytes(s: string): number[] {
+  return [...Buffer.from(s, 'ascii').map(b => (b > 127 ? 0x3f : b))] // replace non-ASCII with '?'
+}
+function line(s: string): number[] { return [...strBytes(s), CR, LF] }
+function padEnd(s: string, len: number): string { return s.substring(0, len).padEnd(len) }
+function padStart(s: string, len: number): string { return s.substring(0, len).padStart(len) }
+
+interface InvoiceData {
+  invoiceNumber: string
+  totalAmount: number | string
+  createdAt: string
+  customer?: { name?: string }
+  details?: Array<{
+    quantity: number
+    unitPrice: number | string
+    total: number | string
+    product?: { name?: string }
+  }>
+}
+
+export function buildEscpPlain(inv: InvoiceData): Buffer {
+  const bytes: number[] = []
+
+  // Initialize printer
+  bytes.push(ESC, 0x40)
+
+  bytes.push(...line(`Invoice: ${inv.invoiceNumber}`))
+  bytes.push(...line(`Customer: ${inv.customer?.name ?? 'Walk-in'}`))
+  bytes.push(...line(`Date: ${new Date(inv.createdAt).toLocaleDateString('en-PH')}`))
+  bytes.push(...line('-'.repeat(60)))
+  bytes.push(...line(`${'Product'.padEnd(34)}${'Qty'.padStart(6)}${'Price'.padStart(10)}${'Total'.padStart(10)}`))
+  bytes.push(...line('-'.repeat(60)))
+
+  for (const d of inv.details ?? []) {
+    const name = padEnd(d.product?.name ?? '', 34)
+    const qty = padStart(String(d.quantity), 6)
+    const price = padStart(`P${Number(d.unitPrice).toLocaleString()}`, 10)
+    const total = padStart(`P${Number(d.total).toLocaleString()}`, 10)
+    bytes.push(...line(`${name}${qty}${price}${total}`))
+  }
+
+  bytes.push(...line('-'.repeat(60)))
+  bytes.push(...line(`${'TOTAL:'.padEnd(50)}${padStart(`P${Number(inv.totalAmount).toLocaleString()}`, 10)}`))
+  bytes.push(FF)
+
+  return Buffer.from(bytes)
+}
+
+export function buildEscpPreprinted(inv: InvoiceData, offsets: { row: number; col: number }): Buffer {
+  const bytes: number[] = []
+  bytes.push(ESC, 0x40)
+
+  // Advance to starting row
+  for (let i = 0; i < offsets.row; i++) bytes.push(LF)
+
+  // Invoice number
+  bytes.push(...strBytes(' '.repeat(offsets.col)))
+  bytes.push(...line(inv.invoiceNumber))
+
+  // Customer name
+  bytes.push(...strBytes(' '.repeat(offsets.col)))
+  bytes.push(...line(inv.customer?.name ?? 'Walk-in'))
+
+  // Date
+  bytes.push(...strBytes(' '.repeat(offsets.col)))
+  bytes.push(...line(new Date(inv.createdAt).toLocaleDateString('en-PH')))
+
+  // Line items — max 10 on typical pre-printed form
+  for (const d of (inv.details ?? []).slice(0, 10)) {
+    bytes.push(...strBytes(' '.repeat(offsets.col)))
+    const name = padEnd(d.product?.name ?? '', 28)
+    const qty = padStart(String(d.quantity), 6)
+    const total = padStart(`P${Number(d.total).toLocaleString()}`, 12)
+    bytes.push(...line(`${name}${qty}${total}`))
+  }
+
+  // Total line
+  bytes.push(...strBytes(' '.repeat(offsets.col + 34)))
+  bytes.push(...line(padStart(`P${Number(inv.totalAmount).toLocaleString()}`, 12)))
+
+  bytes.push(FF)
+  return Buffer.from(bytes)
+}
