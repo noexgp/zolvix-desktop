@@ -6,6 +6,11 @@ import icon from '../../resources/icon.png?asset'
 import { store } from './store'
 import { buildEscpPreprinted, buildEscpPlain } from './escp-builder'
 
+// Accept self-signed certificates — this is a closed internal app where users configure their own server
+app.on('certificate-error', (_event, _webContents, _url, _error, _certificate, callback) => {
+  callback(true)
+})
+
 // Conditional import for @thiagoelg/node-printer (native module — may not be compiled on dev machine)
 let printerModule: typeof import('@thiagoelg/node-printer') | null = null
 try {
