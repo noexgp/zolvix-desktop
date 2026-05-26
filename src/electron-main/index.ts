@@ -51,7 +51,7 @@ function createWindow(): void {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.zolvix.desktop')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -101,11 +101,9 @@ app.whenReady().then(() => {
   createWindow()
 
   // Check for updates after window is ready
-  try {
-    autoUpdater.checkForUpdatesAndNotify()
-  } catch {
-    // Not available in dev mode
-  }
+  autoUpdater.checkForUpdatesAndNotify().catch(() => {
+    // Not available in dev mode or no update server reachable
+  })
 
   autoUpdater.on('update-downloaded', () => {
     dialog.showMessageBox({
@@ -113,9 +111,13 @@ app.whenReady().then(() => {
       title: 'Update Ready',
       message: 'A new version has been downloaded. Restart now to apply the update.',
       buttons: ['Restart', 'Later'],
-    }).then(({ response }) => {
-      if (response === 0) autoUpdater.quitAndInstall()
     })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall()
+      })
+      .catch(() => {
+        // Dialog dismissed or window closed
+      })
   })
 
   app.on('activate', function () {
