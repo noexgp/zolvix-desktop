@@ -59,9 +59,6 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
-
   // Store IPC handlers — key allowlist prevents arbitrary key read/write from renderer
   const STORE_ALLOWED_KEYS = ['serverUrl', 'lx310PrinterName', 'formOffsets', 'setupComplete'] as const
   type StoreKey = typeof STORE_ALLOWED_KEYS[number]
@@ -82,20 +79,20 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('print:lx310', async (_event, { data, mode }: { data: unknown; mode: 'preprinted' | 'plain' }) => {
-    if (!printerModule) throw new Error('Printer module not available on this machine. Reinstall on Windows.')
+    const printer = printerModule
+    if (!printer) throw new Error('Printer support is not available in this build. Use the Windows build to print to the LX-310.')
     const printerName = store.get('lx310PrinterName') as string
     if (!printerName) throw new Error('Printer not configured. Go to Settings to select your LX-310 printer.')
-    const offsets = store.get('formOffsets') as { row: number; col: number }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const invoiceData = data as any
+    const offsets = (store.get('formOffsets') as { row: number; col: number } | undefined) ?? { row: 3, col: 5 }
+    const invoiceData = data as import('./escp-builder').InvoiceData
     const buffer = mode === 'preprinted' ? buildEscpPreprinted(invoiceData, offsets) : buildEscpPlain(invoiceData)
     return new Promise<void>((resolve, reject) => {
-      printerModule!.printDirect({
+      printer.printDirect({
         data: buffer,
         printer: printerName,
         type: 'RAW',
         success: () => resolve(),
-        error: (err: unknown) => reject(new Error(String(err))),
+        error: (err: unknown) => reject(err instanceof Error ? err : new Error(String(err))),
       })
     })
   })

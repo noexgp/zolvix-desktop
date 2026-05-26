@@ -6,13 +6,18 @@ const LF = 0x0a
 const FF = 0x0c  // Form feed / page eject
 
 function strBytes(s: string): number[] {
-  return [...Buffer.from(s, 'ascii').map(b => (b > 127 ? 0x3f : b))] // replace non-ASCII with '?'
+  const out: number[] = []
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i)
+    out.push(c >= 0x20 && c <= 0x7e ? c : 0x3f) // printable ASCII or '?'
+  }
+  return out
 }
 function line(s: string): number[] { return [...strBytes(s), CR, LF] }
 function padEnd(s: string, len: number): string { return s.substring(0, len).padEnd(len) }
 function padStart(s: string, len: number): string { return s.substring(0, len).padStart(len) }
 
-interface InvoiceData {
+export interface InvoiceData {
   invoiceNumber: string
   totalAmount: number | string
   createdAt: string
