@@ -9,6 +9,7 @@ import DeliveryReceiptForm from '@/components/DeliveryReceiptForm'
 import { apiFetch } from '@/lib/api'
 import { db, isCacheExpired, setCacheMeta, invalidateCache } from '@/lib/db'
 import { useAppStore } from '@/stores/appStore'
+import { printSOPdf } from '@/lib/print-pdf'
 
 const TABS = [
   { key: '', label: 'All' },
@@ -286,7 +287,7 @@ function SODetail({ so, businessSettings, onAction, onRefresh, drOpen, setDrOpen
             {label}
           </Button>
         ))}
-        <Button size="sm" variant="outline" className="text-xs" onClick={() => {}}>
+        <Button size="sm" variant="outline" className="text-xs" onClick={() => { printSOPdf(so).catch(e => console.error('PDF error:', e)) }}>
           Print PDF
         </Button>
       </div>
