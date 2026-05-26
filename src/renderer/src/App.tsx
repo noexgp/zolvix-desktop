@@ -9,7 +9,9 @@ import CustomersPage from '@/pages/CustomersPage'
 import ProductsPage from '@/pages/ProductsPage'
 import SettingsPage from '@/pages/SettingsPage'
 import NewSOPage from '@/pages/NewSOPage'
+import EditSOPage from '@/pages/EditSOPage'
 import InvoiceDetailPage from '@/pages/InvoiceDetailPage'
+import TerminalSelectPage from './pages/TerminalSelectPage'
 import { useAppStore } from '@/stores/appStore'
 import { getSession } from '@/lib/auth'
 import { apiFetch } from '@/lib/api'
@@ -27,22 +29,25 @@ function AppLayout() {
 }
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { currentUser, setupComplete } = useAppStore()
+  const { currentUser, setupComplete, terminalId } = useAppStore()
   if (!setupComplete) return <Navigate to="/setup" replace />
   if (!currentUser) return <Navigate to="/login" replace />
+  if (!terminalId) return <Navigate to="/terminal-select" replace />
   return <>{children}</>
 }
 
 export default function App() {
-  const { setCurrentUser, setSetupComplete, setServerUrl, setBusinessSettings } = useAppStore()
+  const { setCurrentUser, setSetupComplete, setServerUrl, setBusinessSettings, setTerminalId, setTerminalConfig } = useAppStore()
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
     async function init() {
       const url = await window.electron.store.get('serverUrl') as string
       const setupDone = await window.electron.store.get('setupComplete') as boolean
+      const storedTerminalId = await window.electron.store.get('terminalId') as string
       if (url) setServerUrl(url)
       if (setupDone) setSetupComplete(true)
+      if (storedTerminalId) setTerminalId(storedTerminalId)
       if (setupDone && url) {
         const user = await getSession()
         if (user) {
@@ -51,9 +56,26 @@ export default function App() {
             const bRes = await apiFetch('/api/settings/business')
             if (bRes.ok) {
               const b = await bRes.json()
-              setBusinessSettings({ bypassApproval: b.bypassApproval ?? false, name: b.name ?? '' })
+              setBusinessSettings({ bypassApproval: !(b.requireSoApproval ?? true), name: b.name ?? '' })
             }
           } catch { /* non-critical */ }
+          if (storedTerminalId) {
+            try {
+              const tRes = await apiFetch(`/api/terminals/${storedTerminalId}`)
+              if (tRes.ok) {
+                const d = await tRes.json()
+                const t = d.terminal
+                setTerminalConfig({
+                  id: t.id, name: t.name,
+                  lx310PrinterName: t.lx310PrinterName ?? null,
+                  formRowOffset: t.formRowOffset ?? 3,
+                  formColOffset: t.formColOffset ?? 5,
+                  paperWidth: t.paperWidth ?? 8.5,
+                  paperHeight: t.paperHeight ?? 11,
+                })
+              }
+            } catch { /* non-critical */ }
+          }
         }
       }
       setReady(true)
@@ -76,6 +98,7 @@ export default function App() {
               id: p.id, name: p.name, sku: p.sku ?? '', barcode: p.barcode ?? '', unit: p.unit ?? '',
               price: Number(p.price), stock: p.stock ?? 0,
               categoryId: p.categoryId ?? '', isActive: p.isActive, updatedAt: p.updatedAt,
+              vatType: p.vatType ?? 'VATABLE',
             })))
             await setCacheMeta('products')
           }
@@ -110,9 +133,11 @@ export default function App() {
       <Routes>
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/terminal-select" element={<TerminalSelectPage />} />
         <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
           <Route path="/sales-orders" element={<SalesOrdersPage />} />
           <Route path="/sales-orders/new" element={<NewSOPage />} />
+          <Route path="/sales-orders/:id/edit" element={<EditSOPage />} />
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/:id" element={<InvoiceDetailPage />} />
           <Route path="/customers" element={<CustomersPage />} />
