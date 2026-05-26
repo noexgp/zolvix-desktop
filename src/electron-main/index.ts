@@ -1,10 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { store } from './store'
-import { buildEscpPreprinted, buildEscpPlain } from './escp-builder'
 
 // Accept self-signed certificates — this is a closed internal app where users configure their own server
 app.on('certificate-error', (_event, _webContents, _url, _error, _certificate, callback) => {
@@ -29,7 +28,8 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      webSecurity: false  // closed internal app — allows cross-origin API calls without CORS headers
     }
   })
 
@@ -38,6 +38,19 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
+    // blob: URLs are PDF previews — open in a new Electron window (Chromium PDF viewer)
+    if (details.url.startsWith('blob:')) {
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          width: 900,
+          height: 800,
+          autoHideMenuBar: true,
+          title: 'Print Preview',
+          webPreferences: { sandbox: false },
+        },
+      }
+    }
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -66,7 +79,7 @@ app.whenReady().then(() => {
   })
 
   // Store IPC handlers — key allowlist prevents arbitrary key read/write from renderer
-  const STORE_ALLOWED_KEYS = ['serverUrl', 'lx310PrinterName', 'formOffsets', 'setupComplete'] as const
+  const STORE_ALLOWED_KEYS = ['serverUrl', 'setupComplete', 'terminalId'] as const
   type StoreKey = typeof STORE_ALLOWED_KEYS[number]
 
   ipcMain.handle('store:get', (_, key: string) => {
@@ -79,29 +92,66 @@ app.whenReady().then(() => {
     store.set(key as StoreKey, value as any)
   })
 
-  ipcMain.handle('print:getPrinters', () => {
+  // General API proxy — all renderer fetch calls route through here to avoid CORS.
+  // net.request uses the session cookie jar so auth cookies are sent/stored automatically.
+  ipcMain.handle('api:fetch', (_event, { url, method, headers, body }: {
+    url: string
+    method: string
+    headers: Record<string, string>
+    body?: string
+  }) => {
+    return new Promise<{ status: number; headers: Record<string, string | string[]>; body: string }>((resolve, reject) => {
+      try {
+        const req = net.request({ url, method, useSessionCookies: true })
+        for (const [k, v] of Object.entries(headers ?? {})) req.setHeader(k, v)
+        req.on('response', (res) => {
+          const chunks: Buffer[] = []
+          res.on('data', (chunk: Buffer) => chunks.push(chunk))
+          res.on('end', () => resolve({
+            status: res.statusCode,
+            headers: res.headers as Record<string, string | string[]>,
+            body: Buffer.concat(chunks).toString('utf-8'),
+          }))
+          res.on('error', reject)
+        })
+        req.on('error', reject)
+        if (body) req.write(body)
+        req.end()
+      } catch (err) {
+        reject(err)
+      }
+    })
+  })
+
+  ipcMain.handle('server:checkHealth', (_event, url: string) => {
+    return new Promise<{ ok: boolean; status?: number; error?: string }>((resolve) => {
+      try {
+        const req = net.request({ url: `${url}/api/health`, method: 'GET' })
+        req.on('response', (res) => {
+          resolve({ ok: res.statusCode >= 200 && res.statusCode < 300, status: res.statusCode })
+        })
+        req.on('error', (err) => {
+          resolve({ ok: false, error: err.message })
+        })
+        req.end()
+      } catch (err) {
+        resolve({ ok: false, error: err instanceof Error ? err.message : String(err) })
+      }
+    })
+  })
+
+  ipcMain.handle('print:getPrinters', async () => {
+    // Use Electron's built-in cross-platform printer list
+    const win = BrowserWindow.getAllWindows()[0]
+    if (win) {
+      const list = await win.webContents.getPrintersAsync()
+      return list.map((p) => p.name)
+    }
+    // Fallback to native module if available (Windows)
     if (!printerModule) return []
     return printerModule.getPrinters().map((p: { name: string }) => p.name)
   })
 
-  ipcMain.handle('print:lx310', async (_event, { data, mode }: { data: unknown; mode: 'preprinted' | 'plain' }) => {
-    const printer = printerModule
-    if (!printer) throw new Error('Printer support is not available in this build. Use the Windows build to print to the LX-310.')
-    const printerName = store.get('lx310PrinterName') as string
-    if (!printerName) throw new Error('Printer not configured. Go to Settings to select your LX-310 printer.')
-    const offsets = (store.get('formOffsets') as { row: number; col: number } | undefined) ?? { row: 3, col: 5 }
-    const invoiceData = data as import('./escp-builder').InvoiceData
-    const buffer = mode === 'preprinted' ? buildEscpPreprinted(invoiceData, offsets) : buildEscpPlain(invoiceData)
-    return new Promise<void>((resolve, reject) => {
-      printer.printDirect({
-        data: buffer,
-        printer: printerName,
-        type: 'RAW',
-        success: () => resolve(),
-        error: (err: unknown) => reject(err instanceof Error ? err : new Error(String(err))),
-      })
-    })
-  })
 
   createWindow()
 
