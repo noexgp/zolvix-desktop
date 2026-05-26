@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { store } from './store'
+import { buildEscpPlain, buildEscpPreprinted } from './escp-builder'
 
 // Accept self-signed certificates — this is a closed internal app where users configure their own server
 app.on('certificate-error', (_event, _webContents, _url, _error, _certificate, callback) => {
@@ -152,6 +153,23 @@ app.whenReady().then(() => {
     return printerModule.getPrinters().map((p: { name: string }) => p.name)
   })
 
+  ipcMain.handle('print:lx310', async (_event, { data, mode, printerName, offsets, paper }: {
+    data: unknown
+    mode: 'preprinted' | 'plain'
+    printerName: string
+    offsets: { row: number; col: number }
+    paper: { width: number; height: number }
+  }) => {
+    if (!printerModule) throw new Error('Printer support not available. Use the Windows build.')
+    if (!printerName) throw new Error('Printer not configured. Go to Settings.')
+    const invoiceData = data as import('./escp-builder').InvoiceData
+    const buffer = mode === 'preprinted'
+      ? buildEscpPreprinted(invoiceData, offsets, paper)
+      : buildEscpPlain(invoiceData, paper)
+    return new Promise<void>((resolve, reject) => {
+      printerModule!.printDirect({ data: buffer, printer: printerName, type: 'RAW', success: () => resolve(), error: reject })
+    })
+  })
 
   createWindow()
 
