@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { ClipboardList, FileText, Users, Package, Settings, LogOut, Sun, Moon } from 'lucide-react'
 import { logout } from '@/lib/auth'
@@ -17,8 +18,26 @@ const nav = [
 ]
 
 export default function Sidebar() {
-  const { currentUser, setCurrentUser, theme, setTheme } = useAppStore()
+  const { currentUser, setCurrentUser, theme, setTheme, serverUrl } = useAppStore()
   const navigate = useNavigate()
+  const [online, setOnline] = useState(false)
+
+  useEffect(() => {
+    async function check() {
+      if (!serverUrl || !navigator.onLine) { setOnline(false); return }
+      const result = await window.electron.server.checkHealth(serverUrl).catch(() => ({ ok: false }))
+      setOnline(result.ok)
+    }
+    check()
+    const interval = setInterval(check, 30_000)
+    window.addEventListener('online', check)
+    window.addEventListener('offline', () => setOnline(false))
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('online', check)
+      window.removeEventListener('offline', () => setOnline(false))
+    }
+  }, [serverUrl])
 
   async function handleLogout() {
     await logout()
@@ -36,7 +55,10 @@ export default function Sidebar() {
     <aside aria-label="Main navigation" className="w-40 bg-sidebar flex flex-col shrink-0 h-screen border-r border-sidebar-border">
       <div className="px-3 py-4 border-b border-sidebar-border">
         <div className="text-primary font-bold text-sm">ZOLVIX</div>
-        <div className="text-muted-foreground text-xs">Desktop</div>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', online ? 'bg-green-500' : 'bg-red-500')} />
+          <span className="text-muted-foreground text-xs">{online ? 'Online' : 'Offline'}</span>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-2">
