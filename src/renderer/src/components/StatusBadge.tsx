@@ -2,19 +2,19 @@ import { cn } from '@/lib/utils'
 
 const STATUS_COLORS: Record<string, string> = {
   // invoice statuses
-  pending:              'bg-amber-900/30 text-amber-400',
-  paid:                 'bg-green-500/15 text-green-600 dark:text-green-400',
+  pending:              'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  paid:                 'bg-green-500/15 text-green-700 dark:text-green-400',
   partial:              'bg-primary/15 text-primary',
-  overdue:              'bg-destructive/20 text-destructive',
+  overdue:              'bg-destructive/15 text-destructive',
   // sales order statuses
-  draft:                'bg-card text-muted-foreground',
-  pending_approval:     'bg-amber-900/30 text-amber-400',
-  approved:             'bg-green-500/15 text-green-600 dark:text-green-400',
+  draft:                'bg-muted text-muted-foreground',
+  pending_approval:     'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  approved:             'bg-green-500/15 text-green-700 dark:text-green-400',
   partially_delivered:  'bg-primary/15 text-primary',
-  delivered:            'bg-indigo-900/30 text-indigo-400',
-  invoiced:             'bg-purple-900/30 text-purple-400',
-  rejected:             'bg-destructive/20 text-destructive',
-  cancelled:            'bg-destructive/20 text-destructive',
+  delivered:            'bg-indigo-500/15 text-indigo-700 dark:text-indigo-400',
+  invoiced:             'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  rejected:             'bg-destructive/15 text-destructive',
+  cancelled:            'bg-destructive/15 text-destructive',
   void:                 'bg-muted text-muted-foreground',
 }
 

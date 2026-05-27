@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Pencil, Plus, RefreshCw, ExternalLink } from 'lucide-react'
+import { Pencil, Plus, RefreshCw, ExternalLink, Loader2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import SOListItem from '@/components/SOListItem'
 import DeliveryReceiptForm from '@/components/DeliveryReceiptForm'
@@ -182,13 +182,19 @@ export default function SalesOrdersPage() {
     <div className="flex flex-col h-full">
       {/* Top bar */}
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-background">
-        <span className="text-foreground font-semibold text-sm">Sales Orders</span>
+        <h1 className="text-foreground font-bold text-base tracking-tight">Sales Orders</h1>
         <div className="ml-auto flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => fetchList(true)} className="gap-1">
-            <RefreshCw className="w-3 h-3" /> Sync
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => fetchList(true)}
+            disabled={loading}
+            className="gap-1.5"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Sync
           </Button>
-          <Button size="sm" onClick={() => navigate('/sales-orders/new')} className="gap-1">
-            <Plus className="w-3 h-3" /> New SO
+          <Button size="sm" onClick={() => navigate('/sales-orders/new')} className="gap-1.5">
+            <Plus className="w-3.5 h-3.5" /> New SO
           </Button>
         </div>
       </div>
@@ -201,20 +207,20 @@ export default function SalesOrdersPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-1 px-3 py-1.5 border-b border-border overflow-x-auto">
+      <div className="flex gap-1 px-3 py-2 bg-background border-b border-border overflow-x-auto">
         {TABS.map(t => {
           const count = t.key === '' ? soList.length : soList.filter(s => s.status === t.key).length
           return (
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] whitespace-nowrap ${
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs whitespace-nowrap transition-colors ${
               activeTab === t.key ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             {t.label}
             {count > 0 && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${
                 activeTab === t.key ? 'bg-primary/30 text-primary' : 'bg-muted text-foreground'
               }`}>{count}</span>
             )}
@@ -226,9 +232,25 @@ export default function SalesOrdersPage() {
       {/* Split panel */}
       <div className="flex flex-1 overflow-hidden">
         {/* SO List */}
-        <div className="w-64 border-r border-border overflow-y-auto shrink-0">
-          {loading && <div className="p-4 text-xs text-muted-foreground">Loading...</div>}
-          {filtered.map(s => (
+        <div className="w-64 border-r border-border overflow-y-auto shrink-0 bg-background">
+          {loading && (
+            <div className="p-3 space-y-2">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="animate-pulse space-y-1.5 py-1.5">
+                  <div className="flex justify-between items-center gap-2">
+                    <div className="h-3.5 w-24 rounded bg-muted" />
+                    <div className="h-3.5 w-14 rounded bg-muted" />
+                  </div>
+                  <div className="h-3 w-3/4 rounded bg-muted" />
+                  <div className="flex justify-between items-center">
+                    <div className="h-3 w-16 rounded bg-muted" />
+                    <div className="h-3 w-12 rounded bg-muted" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {!loading && filtered.map(s => (
             <SOListItem
               key={s.id}
               so={s}
@@ -237,13 +259,20 @@ export default function SalesOrdersPage() {
             />
           ))}
           {!loading && filtered.length === 0 && (
-            <div className="p-4 text-xs text-muted-foreground">No sales orders found.</div>
+            <div className="flex flex-col items-center justify-center h-24 text-xs text-muted-foreground gap-1">
+              <FileText className="w-5 h-5 opacity-40" />
+              <span>No sales orders found.</span>
+            </div>
           )}
         </div>
 
         {/* Detail Panel */}
         <div className="flex-1 overflow-y-auto p-4">
-          {detailLoading && <div className="text-xs text-muted-foreground">Loading...</div>}
+          {detailLoading && (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+            </div>
+          )}
           {!detailLoading && soDetail && (
             <>
               {actionError && <ErrorBanner message={actionError} className="mb-3" />}
@@ -260,8 +289,9 @@ export default function SalesOrdersPage() {
             </>
           )}
           {!detailLoading && !soDetail && (
-            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-              Select a sales order to view details
+            <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
+              <FileText className="w-10 h-10 opacity-30" />
+              <span className="text-sm">Select a sales order to view details</span>
             </div>
           )}
         </div>
@@ -337,7 +367,7 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
               </Button>
             ))}
             <Button size="sm" variant="outline"
-              onClick={() => { printSOPdf(so).catch(e => setActionError(e instanceof Error ? e.message : 'PDF failed')) }}>
+              onClick={() => { printSOPdf(so, businessSettings?.name).catch(e => setActionError(e instanceof Error ? e.message : 'PDF failed')) }}>
               PDF
             </Button>
             <button onClick={onRefresh} className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground">
@@ -350,7 +380,7 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
       {/* ── Order Info ── */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         <div className="px-4 py-2.5 border-b border-border">
-          <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">Order Info</span>
+          <span className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">Order Info</span>
         </div>
         {[
           ['Customer',      customer?.name ?? '—'],
@@ -369,7 +399,7 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
       {/* ── Items ── */}
       <div className="bg-card border border-border rounded-lg overflow-hidden">
         <div className="px-4 py-2.5 border-b border-border">
-          <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
+          <span className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">
             Items ({(details ?? []).length})
           </span>
         </div>
@@ -427,7 +457,7 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
       {(so.deliveryReceipts ?? []).length > 0 && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <div className="px-4 py-2.5 border-b border-border">
-            <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
+            <span className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">
               Delivery Receipts ({(so.deliveryReceipts ?? []).length})
             </span>
           </div>
@@ -465,7 +495,7 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
       {(so.invoices ?? []).length > 0 && (
         <div className="bg-card border border-border rounded-lg overflow-hidden">
           <div className="px-4 py-2.5 border-b border-border">
-            <span className="text-[10px] font-semibold text-muted-foreground tracking-widest uppercase">
+            <span className="text-xs font-semibold text-muted-foreground tracking-widest uppercase">
               Invoices ({(so.invoices ?? []).length})
             </span>
           </div>
@@ -479,7 +509,7 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
                     <div className="text-xs text-primary">Balance: ₱{Number(inv.balance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</div>
                   )}
                 </div>
-                <span className="text-xs text-muted-foreground capitalize shrink-0">{inv.void ? 'Void' : inv.status}</span>
+                <StatusBadge status={inv.status} voided={inv.void} />
                 <span className="text-sm font-semibold text-foreground shrink-0">
                   ₱{Number(inv.totalAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </span>

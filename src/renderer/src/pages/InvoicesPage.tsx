@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
@@ -132,36 +132,52 @@ export default function InvoicesPage() {
     draft.customerId !== filters.customerId || draft.employeeId !== filters.employeeId
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-background">
       {/* Top bar */}
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-background">
-        <span className="text-foreground font-semibold text-sm">Invoices</span>
+      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-border bg-background">
+        <h1 className="text-foreground font-bold text-base tracking-tight">Invoices</h1>
         <div className="ml-auto flex items-center gap-2">
           {total > 0 && (
-            <span className="text-[11px] text-muted-foreground">{total.toLocaleString()} invoice{total !== 1 ? 's' : ''}</span>
+            <span className="text-[11px] font-medium text-muted-foreground bg-muted rounded-full px-2.5 py-0.5">
+              {total.toLocaleString()} invoice{total !== 1 ? 's' : ''}
+            </span>
           )}
-          <Button size="sm" variant="outline" onClick={() => setSyncKey(k => k + 1)} className="gap-1">
-            <RefreshCw className="w-3 h-3" /> Sync
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSyncKey(k => k + 1)}
+            disabled={loading}
+            className="gap-1.5"
+          >
+            <RefreshCw className={cn('w-3.5 h-3.5', loading && 'animate-spin')} /> Sync
           </Button>
         </div>
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-end gap-2 px-4 py-2 border-b border-border">
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">From</span>
-          <Input type="date" value={draft.from}
+      <div className="flex flex-wrap items-end gap-2 px-4 py-3 border-b border-border bg-card">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">From</span>
+          <Input
+            type="date"
+            value={draft.from}
             onChange={e => setDraft(d => ({ ...d, from: e.target.value }))}
-            className="h-7 text-xs text-foreground w-34" />
+            onKeyDown={e => { if (e.key === 'Enter') applyFilters() }}
+            className="h-8 text-xs text-foreground w-36"
+          />
         </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">To</span>
-          <Input type="date" value={draft.to}
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">To</span>
+          <Input
+            type="date"
+            value={draft.to}
             onChange={e => setDraft(d => ({ ...d, to: e.target.value }))}
-            className="h-7 text-xs text-foreground w-34" />
+            onKeyDown={e => { if (e.key === 'Enter') applyFilters() }}
+            className="h-8 text-xs text-foreground w-36"
+          />
         </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Customer</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Customer</span>
           <SearchableSelect
             value={draft.customerId}
             onChange={(id) => setDraft(d => ({ ...d, customerId: id }))}
@@ -170,8 +186,8 @@ export default function InvoicesPage() {
             className="w-44"
           />
         </div>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Agent</span>
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wide">Agent</span>
           <SearchableSelect
             value={draft.employeeId}
             onChange={(id) => setDraft(d => ({ ...d, employeeId: id }))}
@@ -184,14 +200,19 @@ export default function InvoicesPage() {
           Search
         </Button>
         {hasActiveFilters && (
-          <Button size="sm" variant="ghost" onClick={clearFilters} className="text-muted-foreground hover:text-foreground">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={clearFilters}
+            className="text-muted-foreground hover:text-foreground"
+          >
             Clear
           </Button>
         )}
       </div>
 
       {/* Column headers */}
-      <div className="grid grid-cols-12 gap-1 px-4 py-1.5 text-[10px] text-muted-foreground uppercase tracking-wide border-b border-border bg-background/40">
+      <div className="grid grid-cols-12 gap-1 px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide border-b border-border bg-muted/50">
         <span className="col-span-2">Invoice #</span>
         <span className="col-span-3">Customer</span>
         <span className="col-span-2">Agent</span>
@@ -203,9 +224,35 @@ export default function InvoicesPage() {
 
       {/* List */}
       <div className="flex-1 overflow-y-auto">
-        {loading && <div className="p-4 text-xs text-muted-foreground">Loading...</div>}
         {error && <ErrorBanner message={error} className="mx-4 mt-3" />}
-        {!loading && invoices.map(inv => (
+
+        {loading && (
+          <div>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div
+                key={i}
+                className={cn(
+                  'grid grid-cols-12 gap-1 items-center px-4 py-2.5 border-b border-border/50 animate-pulse',
+                  i % 2 === 0 ? 'bg-card' : 'bg-background'
+                )}
+              >
+                <span className="col-span-2"><span className="block h-3 w-24 rounded bg-muted" /></span>
+                <span className="col-span-3"><span className="block h-3 w-40 rounded bg-muted" /></span>
+                <span className="col-span-2"><span className="block h-3 w-28 rounded bg-muted" /></span>
+                <span className="col-span-2"><span className="block h-3 w-20 rounded bg-muted" /></span>
+                <span className="col-span-1 flex justify-end"><span className="block h-3 w-16 rounded bg-muted" /></span>
+                <span className="col-span-1 flex justify-end"><span className="block h-3 w-14 rounded bg-muted" /></span>
+                <span className="col-span-1 flex justify-center"><span className="block h-4 w-14 rounded-full bg-muted" /></span>
+              </div>
+            ))}
+            <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Loading invoices…</span>
+            </div>
+          </div>
+        )}
+
+        {!loading && invoices.map((inv, idx) => (
           <div
             key={inv.id}
             role="button"
@@ -213,21 +260,32 @@ export default function InvoicesPage() {
             onClick={() => navigate(`/invoices/${inv.id}`)}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/invoices/${inv.id}`) } }}
             className={cn(
-              'grid grid-cols-12 gap-1 items-center px-4 py-2 cursor-pointer border-b border-border/50 hover:bg-muted/50 focus:outline-none focus:bg-muted/50',
+              'grid grid-cols-12 gap-1 items-center px-4 py-2.5 cursor-pointer border-b border-border/50',
+              'transition-colors duration-100 hover:bg-accent/60 focus:outline-none focus:bg-accent/60',
+              idx % 2 === 0 ? 'bg-card' : 'bg-background',
               inv.void && 'opacity-40'
             )}
           >
-            <span className="col-span-2 text-xs font-mono text-foreground truncate">{inv.invoiceNumber}</span>
-            <span className="col-span-3 text-xs text-foreground truncate">{inv.customer?.name ?? 'Walk-in'}</span>
-            <span className="col-span-2 text-xs text-muted-foreground truncate">{inv.employee?.name ?? '—'}</span>
-            <span className="col-span-2 text-[11px] text-muted-foreground">
+            <span className="col-span-2 text-xs font-mono font-medium text-primary truncate">
+              {inv.invoiceNumber}
+            </span>
+            <span className="col-span-3 text-xs font-medium text-foreground truncate">
+              {inv.customer?.name ?? 'Walk-in'}
+            </span>
+            <span className="col-span-2 text-xs text-muted-foreground truncate">
+              {inv.employee?.name ?? '—'}
+            </span>
+            <span className="col-span-2 text-xs text-muted-foreground">
               {new Date(inv.createdAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: '2-digit' })}
             </span>
             <span className="col-span-1 text-xs text-right text-foreground tabular-nums">
               ₱{Number(inv.totalAmount).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </span>
-            <span className={cn('col-span-1 text-xs text-right tabular-nums',
-              Number(inv.balance) <= 0 ? 'text-muted-foreground' : 'text-amber-400'
+            <span className={cn(
+              'col-span-1 text-xs text-right tabular-nums',
+              Number(inv.balance) <= 0
+                ? 'text-muted-foreground'
+                : 'font-semibold text-amber-600 dark:text-amber-400'
             )}>
               {Number(inv.balance) <= 0 ? '—' : `₱${Number(inv.balance).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
             </span>
@@ -236,6 +294,7 @@ export default function InvoicesPage() {
             </span>
           </div>
         ))}
+
         {!loading && !error && invoices.length === 0 && <EmptyState message="No invoices found." />}
       </div>
 
