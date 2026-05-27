@@ -178,26 +178,31 @@ export default function NewSOPage() {
     if (filledLines.length === 0) { setError('Add at least one line item.'); return }
     if (filledLines.some(l => l.quantity <= 0)) { setError('All quantities must be greater than zero.'); return }
     setSaving(true); setError('')
+
+    const payload: import('@/lib/db').PendingSOPayload = {
+      customerId,
+      employeeId: employeeId || undefined,
+      orderDate,
+      notes: notes.trim() || undefined,
+      discount: globalDiscount,
+      discountMode,
+      deliveryFee: deliveryFee || undefined,
+      details: filledLines.map((l, i) => ({
+        productId: l.productId, quantity: l.quantity,
+        unitPrice: l.unitPrice, discount: l.discount, total: l.total, lineNumber: i + 1,
+      })),
+    }
+
+    let isServerError = false
     try {
       const res = await apiFetch('/api/sales-orders', {
         method: 'POST',
-        body: JSON.stringify({
-          customerId,
-          employeeId: employeeId || undefined,
-          orderDate,
-          notes: notes.trim() || undefined,
-          discount: globalDiscount,
-          discountMode,
-          deliveryFee: deliveryFee || undefined,
-          details: filledLines.map((l, i) => ({
-            productId: l.productId, quantity: l.quantity,
-            unitPrice: l.unitPrice, discount: l.discount, total: l.total, lineNumber: i + 1,
-          })),
-        }),
+        body: JSON.stringify(payload),
       })
       if (!res.ok) {
+        isServerError = true
         const d = await res.json().catch(() => ({}))
-        throw new Error(d.error ?? 'Failed to create sales order')
+        throw new Error((d as { error?: string }).error ?? 'Failed to create sales order')
       }
       const data = await res.json()
       await invalidateCache('salesOrders')
@@ -207,12 +212,29 @@ export default function NewSOPage() {
         const submitRes = await apiFetch(`/api/sales-orders/${soId}/submit`, { method: 'POST', body: '{}' })
         if (!submitRes.ok) {
           const d = await submitRes.json().catch(() => ({}))
-          throw new Error(d.error ?? 'Order created but submit failed')
+          throw new Error((d as { error?: string }).error ?? 'Order created but submit failed')
         }
       }
       navigate('/sales-orders')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create sales order')
+      if (isServerError) {
+        setError(err instanceof Error ? err.message : 'Failed to create sales order')
+      } else {
+        // Network error — save to local queue
+        try {
+          const customerName = customers.find(c => c.id === customerId)?.name ?? customerId
+          await db.pendingSalesOrders.put({
+            localId: crypto.randomUUID(),
+            payload,
+            customerName,
+            submitAfter,
+            createdAt: new Date().toISOString(),
+          })
+          navigate('/sales-orders')
+        } catch {
+          setError('Failed to save locally. Please check your storage.')
+        }
+      }
     } finally {
       setSaving(false)
     }

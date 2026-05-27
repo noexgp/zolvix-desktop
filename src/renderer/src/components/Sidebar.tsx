@@ -5,6 +5,7 @@ import { logout } from '@/lib/auth'
 import { useAppStore } from '@/stores/appStore'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { syncPendingSalesOrders, getPendingCount } from '@/lib/sync'
 
 const nav = [
   { group: 'PIPELINE', items: [
@@ -21,13 +22,31 @@ export default function Sidebar() {
   const { currentUser, setCurrentUser, theme, setTheme, serverUrl } = useAppStore()
   const navigate = useNavigate()
   const [online, setOnline] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  async function refreshPendingCount() {
+    const count = await getPendingCount()
+    setPendingCount(count)
+  }
 
   useEffect(() => {
+    let wasOnline = false
+
     async function check() {
       if (!serverUrl || !navigator.onLine) { setOnline(false); return }
       const result = await window.electron.server.checkHealth(serverUrl).catch(() => ({ ok: false }))
-      setOnline(result.ok)
+      const nowOnline = result.ok
+      setOnline(nowOnline)
+
+      if (nowOnline && !wasOnline) {
+        // Just came back online — sync pending SOs
+        await syncPendingSalesOrders()
+        await refreshPendingCount()
+      }
+      wasOnline = nowOnline
+      await refreshPendingCount()
     }
+
     check()
     const interval = setInterval(check, 30_000)
     window.addEventListener('online', check)
@@ -58,6 +77,11 @@ export default function Sidebar() {
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', online ? 'bg-green-500' : 'bg-red-500')} />
           <span className="text-muted-foreground text-xs">{online ? 'Online' : 'Offline'}</span>
+          {pendingCount > 0 && (
+            <span className="ml-auto text-[10px] bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 px-1.5 py-0.5 rounded-full font-medium">
+              {pendingCount} pending
+            </span>
+          )}
         </div>
       </div>
 

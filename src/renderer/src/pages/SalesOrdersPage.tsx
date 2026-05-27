@@ -10,6 +10,7 @@ import { apiFetch } from '@/lib/api'
 import { db, isCacheExpired, setCacheMeta, invalidateCache } from '@/lib/db'
 import { useAppStore } from '@/stores/appStore'
 import { printSOPdf } from '@/lib/print-pdf'
+import { getPendingCount, syncPendingSalesOrders } from '@/lib/sync'
 
 const TABS = [
   { key: '', label: 'All' },
@@ -34,6 +35,7 @@ export default function SalesOrdersPage() {
   const [actionError, setActionError] = useState('')
   const { businessSettings, setBusinessSettings, currentUser } = useAppStore()
   const [bypassApproval, setBypassApproval] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
   const navigate = useNavigate()
 
   // Fetch business settings fresh on every visit
@@ -90,6 +92,18 @@ export default function SalesOrdersPage() {
   }, [])
 
   useEffect(() => { fetchList() }, [fetchList])
+
+  useEffect(() => {
+    getPendingCount().then(setPendingCount)
+  }, [])
+
+  async function handleSyncNow() {
+    const result = await syncPendingSalesOrders()
+    if (result.synced > 0) {
+      await fetchList(true)
+      getPendingCount().then(setPendingCount)
+    }
+  }
 
   async function fetchDetail(id: string) {
     setDetailLoading(true)
@@ -178,6 +192,13 @@ export default function SalesOrdersPage() {
           </Button>
         </div>
       </div>
+
+      {pendingCount > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-yellow-500/10 border-b border-yellow-500/20 text-xs text-yellow-700 dark:text-yellow-400">
+          <span>{pendingCount} order{pendingCount > 1 ? 's' : ''} saved offline, pending sync</span>
+          <button onClick={handleSyncNow} className="ml-auto underline hover:no-underline">Sync now</button>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-1 px-3 py-1.5 border-b border-border overflow-x-auto">

@@ -1,5 +1,33 @@
 import Dexie, { type Table } from 'dexie'
 
+export interface SOLinePayload {
+  productId: string
+  quantity: number
+  unitPrice: number
+  discount: number
+  total: number
+  lineNumber: number
+}
+
+export interface PendingSOPayload {
+  customerId: string
+  employeeId?: string
+  orderDate: string
+  notes?: string
+  discount?: number
+  discountMode?: string
+  deliveryFee?: number
+  details: SOLinePayload[]
+}
+
+export interface PendingSO {
+  localId: string
+  payload: PendingSOPayload
+  customerName: string
+  submitAfter: boolean
+  createdAt: string
+}
+
 export interface CachedProduct {
   id: string
   name: string
@@ -11,6 +39,7 @@ export interface CachedProduct {
   categoryId: string
   isActive: boolean
   updatedAt: string
+  vatType?: string
 }
 
 export interface CachedCustomer {
@@ -35,6 +64,7 @@ export interface CachedSO {
   deliveryDate?: string
   notes?: string
   updatedAt: string
+  userId?: string
 }
 
 interface MetaEntry {
@@ -47,6 +77,7 @@ export class AppDB extends Dexie {
   customers!: Table<CachedCustomer>
   salesOrders!: Table<CachedSO>
   meta!: Table<MetaEntry>
+  pendingSalesOrders!: Table<PendingSO>
 
   constructor() {
     super('ZolvixDesktop')
@@ -61,6 +92,19 @@ export class AppDB extends Dexie {
       customers:   'id, name, updatedAt',
       salesOrders: 'id, soNumber, status, updatedAt',
       meta:        'key',
+    })
+    this.version(3).stores({
+      products:    'id, name, updatedAt',
+      customers:   'id, name, updatedAt',
+      salesOrders: 'id, soNumber, status, userId, updatedAt',
+      meta:        'key',
+    })
+    this.version(4).stores({
+      products:            'id, name, updatedAt',
+      customers:           'id, name, updatedAt',
+      salesOrders:         'id, soNumber, status, userId, updatedAt',
+      meta:                'key',
+      pendingSalesOrders:  'localId, createdAt',
     })
   }
 }
