@@ -4,17 +4,19 @@ import NotoSansRegularUrl from '@/assets/fonts/NotoSans-Regular.ttf?url'
 import NotoSansBoldUrl from '@/assets/fonts/NotoSans-Bold.ttf?url'
 
 // @react-pdf/renderer cannot fetch Vite asset URLs directly in Electron.
-// We use the browser fetch API to load the font bytes and register as base64.
+// Fetch font bytes via browser fetch, convert to base64 data URL using FileReader.
 let fontsReady = false
 async function ensureFonts(): Promise<void> {
   if (fontsReady) return
-  const toDataUrl = async (url: string) => {
-    const buf = await fetch(url).then(r => r.arrayBuffer())
-    const bytes = new Uint8Array(buf)
-    let b = ''
-    for (let i = 0; i < bytes.byteLength; i++) b += String.fromCharCode(bytes[i])
-    return `data:font/truetype;base64,${btoa(b)}`
-  }
+  const toDataUrl = (url: string): Promise<string> =>
+    fetch(url)
+      .then(r => r.blob())
+      .then(blob => new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onloadend = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(blob)
+      }))
   const [regular, bold] = await Promise.all([toDataUrl(NotoSansRegularUrl), toDataUrl(NotoSansBoldUrl)])
   Font.register({ family: 'NotoSans', fonts: [{ src: regular, fontWeight: 'normal' }, { src: bold, fontWeight: 'bold' }] })
   fontsReady = true
