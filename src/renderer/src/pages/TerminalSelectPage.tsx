@@ -59,13 +59,13 @@ export default function TerminalSelectPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="bg-card rounded-xl p-8 w-full max-w-md space-y-6">
+      <div className="bg-card rounded-xl p-8 w-full max-w-md space-y-6 shadow-lg border border-border">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Select Terminal</h1>
           <p className="text-muted-foreground text-sm mt-1">Choose which terminal this machine is.</p>
         </div>
         {loading && <p className="text-muted-foreground text-sm">Loading terminals…</p>}
-        {error && <p className="text-red-400 text-xs">{error}</p>}
+        {error && <p className="text-destructive text-xs">{error}</p>}
         <div className="space-y-2">
           {terminals.map(t => (
             <button
@@ -73,7 +73,7 @@ export default function TerminalSelectPage() {
               onClick={() => setSelected(t.id)}
               className={`w-full text-left rounded-lg px-4 py-3 border transition-colors ${
                 selected === t.id
-                  ? 'border-blue-500 bg-primary/15 text-foreground'
+                  ? 'border-primary bg-primary/15 text-foreground'
                   : 'border-border bg-muted/50 text-foreground hover:border-border'
               }`}
             >

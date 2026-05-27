@@ -44,7 +44,7 @@ export default function SetupPage() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="bg-card rounded-xl p-8 w-full max-w-md space-y-6">
+      <div className="bg-card rounded-xl p-8 w-full max-w-md space-y-6 shadow-lg border border-border">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Welcome to Zolvix Desktop</h1>
           <p className="text-muted-foreground text-sm mt-1">Enter your server URL to get started.</p>
@@ -56,9 +56,9 @@ export default function SetupPage() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://yourvps.com"
-            className="bg-muted border-border text-foreground"
+            className="text-foreground"
           />
-          {error && <p className="text-red-400 text-xs">{error}</p>}
+          {error && <p className="text-destructive text-xs">{error}</p>}
         </div>
         <Button onClick={handleSave} disabled={loading} className="w-full">
           {loading ? 'Connecting...' : 'Connect'}

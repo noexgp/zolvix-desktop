@@ -94,7 +94,7 @@ export default function SettingsPage() {
             value={url}
             onChange={e => setUrl(e.target.value)}
             placeholder="https://your-server.com"
-            className="bg-card border-border text-foreground"
+            className="text-foreground"
           />
         </div>
       </div>
@@ -122,13 +122,13 @@ export default function SettingsPage() {
               <Label htmlFor="row-offset" className="text-muted-foreground text-xs">Pre-printed Form Row Offset</Label>
               <Input id="row-offset" type="number" value={rowOffset}
                 onChange={e => setRowOffset(Number(e.target.value) || 0)}
-                className="bg-card border-border text-foreground" />
+                className="text-foreground" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="col-offset" className="text-muted-foreground text-xs">Column Offset</Label>
               <Input id="col-offset" type="number" value={colOffset}
                 onChange={e => setColOffset(Number(e.target.value) || 0)}
-                className="bg-card border-border text-foreground" />
+                className="text-foreground" />
             </div>
           </div>
           <div className="space-y-1">
@@ -138,13 +138,13 @@ export default function SettingsPage() {
                 <Label htmlFor="paper-width" className="text-muted-foreground text-[10px]">Width</Label>
                 <Input id="paper-width" type="number" step="0.25" value={paperWidth}
                   onChange={e => setPaperWidth(parseFloat(e.target.value) || 8.5)}
-                  className="bg-card border-border text-foreground" />
+                  className="text-foreground" />
               </div>
               <div className="space-y-1">
                 <Label htmlFor="paper-height" className="text-muted-foreground text-[10px]">Height</Label>
                 <Input id="paper-height" type="number" step="0.25" value={paperHeight}
                   onChange={e => setPaperHeight(parseFloat(e.target.value) || 11)}
-                  className="bg-card border-border text-foreground" />
+                  className="text-foreground" />
               </div>
             </div>
           </div>

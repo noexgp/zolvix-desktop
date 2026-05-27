@@ -400,7 +400,7 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
               <span>Subtotal</span>
               <span>₱{linesTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex justify-between text-sm text-red-500">
+            <div className="flex justify-between text-sm text-destructive">
               <span>Discount{discMode === 'PERCENT' ? ` (${disc}%)` : ''}</span>
               <span>-₱{discAmt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
             </div>

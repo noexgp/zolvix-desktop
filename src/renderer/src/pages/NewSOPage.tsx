@@ -283,7 +283,7 @@ export default function NewSOPage() {
         </div>
         <div className="text-right">
           <div className="text-xs text-muted-foreground uppercase tracking-wide">Total</div>
-          <div className="text-2xl font-bold text-green-400">₱{fmt(grandTotal)}</div>
+          <div className="text-2xl font-bold text-primary">₱{fmt(grandTotal)}</div>
         </div>
       </div>
 
@@ -309,7 +309,7 @@ export default function NewSOPage() {
             value={orderDate}
             onChange={e => setOrderDate(e.target.value)}
             onKeyDown={e => { if (e.key === 't' || e.key === 'T') { e.preventDefault(); setOrderDate(getManilaToday()) } }}
-            className="bg-card border-border text-foreground"
+            className="text-foreground"
           />
         </div>
         <div className="space-y-1">
@@ -330,7 +330,7 @@ export default function NewSOPage() {
             value={notes}
             onChange={e => setNotes(e.target.value)}
             placeholder="Optional notes..."
-            className="bg-card border-border text-foreground"
+            className="text-foreground"
             onKeyDown={e => {
               if (e.key === 'Enter' || e.key === 'Tab') {
                 e.preventDefault()
@@ -393,7 +393,7 @@ export default function NewSOPage() {
                   document.getElementById(`price-${line._key}`)?.focus()
                 }
               }}
-              className="col-span-1 bg-muted border-0 text-foreground text-xs h-7 text-center"
+              className="col-span-1 text-foreground text-xs h-7 text-center"
             />
             <Input
               id={`price-${line._key}`}
@@ -415,7 +415,7 @@ export default function NewSOPage() {
                   document.getElementById(`disc-${line._key}`)?.focus()
                 }
               }}
-              className={`col-span-2 bg-muted text-foreground text-xs h-7 text-right ${line.basePrice > 0 && line.unitPrice < line.basePrice ? 'border border-red-500' : 'border-0'}`}
+              className={`col-span-2 text-foreground text-xs h-7 text-right ${line.basePrice > 0 && line.unitPrice < line.basePrice ? 'border border-destructive' : ''}`}
             />
             <Input
               id={`disc-${line._key}`}
@@ -432,13 +432,13 @@ export default function NewSOPage() {
                   addLine(true)
                 }
               }}
-              className="col-span-2 bg-muted border-0 text-foreground text-xs h-7 text-right"
+              className="col-span-2 text-foreground text-xs h-7 text-right"
             />
             <span className="col-span-2 text-foreground text-xs text-right">₱{fmt(line.total)}</span>
             <Button
               size="sm" variant="ghost" onClick={() => removeLine(i)}
               disabled={lines.length === 1}
-              className="col-span-1 h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/20 disabled:opacity-20 disabled:cursor-not-allowed"
+              className="col-span-1 h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-20 disabled:cursor-not-allowed"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </Button>
@@ -465,9 +465,9 @@ export default function NewSOPage() {
                   value={globalDiscount}
                   onChange={e => setGlobalDiscount(parseFloat(e.target.value) || 0)}
                   onFocus={e => e.target.select()}
-                  className="w-24 bg-muted border-0 text-foreground text-xs h-6 text-right"
+                  className="w-24 text-foreground text-xs h-6 text-right"
                 />
-                {globalDiscountAmt > 0 && <span className="text-red-400 text-xs w-28 text-right">-₱{fmt(globalDiscountAmt)}</span>}
+                {globalDiscountAmt > 0 && <span className="text-destructive text-xs w-28 text-right">-₱{fmt(globalDiscountAmt)}</span>}
               </div>
             </div>
 
@@ -497,7 +497,7 @@ export default function NewSOPage() {
                   value={deliveryFee}
                   onChange={e => setDeliveryFee(parseFloat(e.target.value) || 0)}
                   onFocus={e => e.target.select()}
-                  className="w-24 bg-muted border-0 text-foreground text-xs h-6 text-right"
+                  className="w-24 text-foreground text-xs h-6 text-right"
                 />
               </div>
             </div>
