@@ -108,13 +108,19 @@ function SOPdf({ so }: { so: SODoc }) {
 
 function openPdfBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  document.body.appendChild(a)
-  a.click()
-  document.body.removeChild(a)
-  setTimeout(() => URL.revokeObjectURL(url), 10000)
+  // Opens in a new Electron window using Chromium's built-in PDF viewer.
+  // The viewer's print button gives full paper size / margin / orientation controls.
+  const win = window.open(url, '_blank')
+  if (!win) {
+    // Fallback: download if popup was blocked
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+  setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
 export async function printInvoicePdf(inv: InvoiceDoc): Promise<void> {

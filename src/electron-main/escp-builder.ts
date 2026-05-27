@@ -30,11 +30,18 @@ export interface InvoiceData {
   }>
 }
 
-export function buildEscpPlain(inv: InvoiceData): Buffer {
+function setPageLength(heightIn: number): number[] {
+  // ESC C 0 n — set page length in 1/360-inch units
+  const units = Math.round(heightIn * 360)
+  return [ESC, 0x43, 0x00, units & 0xff]
+}
+
+export function buildEscpPlain(inv: InvoiceData, paper = { width: 8.5, height: 11 }): Buffer {
   const bytes: number[] = []
 
   // Initialize printer
   bytes.push(ESC, 0x40)
+  bytes.push(...setPageLength(paper.height))
 
   bytes.push(...line(`Invoice: ${inv.invoiceNumber}`))
   bytes.push(...line(`Customer: ${inv.customer?.name ?? 'Walk-in'}`))
@@ -58,9 +65,10 @@ export function buildEscpPlain(inv: InvoiceData): Buffer {
   return Buffer.from(bytes)
 }
 
-export function buildEscpPreprinted(inv: InvoiceData, offsets: { row: number; col: number }): Buffer {
+export function buildEscpPreprinted(inv: InvoiceData, offsets: { row: number; col: number }, paper = { width: 8.5, height: 11 }): Buffer {
   const bytes: number[] = []
   bytes.push(ESC, 0x40)
+  bytes.push(...setPageLength(paper.height))
 
   // Advance to starting row
   for (let i = 0; i < offsets.row; i++) bytes.push(LF)

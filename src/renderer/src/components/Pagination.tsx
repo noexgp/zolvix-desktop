@@ -13,7 +13,7 @@ export default function Pagination({ page, totalPages, loading, onPageChange }: 
   return (
     <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-background">
       <Button
-        size="sm" variant="outline" className="h-7 text-xs gap-1"
+        size="sm" variant="outline" className="gap-1"
         disabled={page <= 1 || loading}
         onClick={() => onPageChange(page - 1)}
       >
@@ -21,7 +21,7 @@ export default function Pagination({ page, totalPages, loading, onPageChange }: 
       </Button>
       <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
       <Button
-        size="sm" variant="outline" className="h-7 text-xs gap-1"
+        size="sm" variant="outline" className="gap-1"
         disabled={page >= totalPages || loading}
         onClick={() => onPageChange(page + 1)}
       >

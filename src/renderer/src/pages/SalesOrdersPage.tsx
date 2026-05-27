@@ -184,10 +184,10 @@ export default function SalesOrdersPage() {
       <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-background">
         <span className="text-foreground font-semibold text-sm">Sales Orders</span>
         <div className="ml-auto flex gap-2">
-          <Button size="sm" variant="outline" onClick={() => fetchList(true)} className="gap-1 text-xs h-7">
+          <Button size="sm" variant="outline" onClick={() => fetchList(true)} className="gap-1">
             <RefreshCw className="w-3 h-3" /> Sync
           </Button>
-          <Button size="sm" onClick={() => navigate('/sales-orders/new')} className="gap-1 text-xs h-7">
+          <Button size="sm" onClick={() => navigate('/sales-orders/new')} className="gap-1">
             <Plus className="w-3 h-3" /> New SO
           </Button>
         </div>
@@ -326,18 +326,17 @@ function SODetail({ so, businessSettings, currentUser, onAction, onRefresh, drOp
           {/* Action buttons compact */}
           <div className="flex items-center gap-1.5 flex-wrap justify-end">
             {canEdit && (
-              <Button size="sm" variant="outline" className="text-xs gap-1 h-7" onClick={() => navigate(`/sales-orders/${id}/edit`)}>
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => navigate(`/sales-orders/${id}/edit`)}>
                 <Pencil className="w-3 h-3" /> Edit
               </Button>
             )}
             {actions.map(({ label, variant, action }) => (
               <Button key={action} size="sm" variant={variant as any}
-                className="text-xs h-7"
                 onClick={() => action === 'dr' ? setDrOpen(true) : onAction(action)}>
                 {label}
               </Button>
             ))}
-            <Button size="sm" variant="outline" className="text-xs h-7"
+            <Button size="sm" variant="outline"
               onClick={() => { printSOPdf(so).catch(e => setActionError(e instanceof Error ? e.message : 'PDF failed')) }}>
               PDF
             </Button>

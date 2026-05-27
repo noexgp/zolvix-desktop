@@ -140,7 +140,7 @@ export default function InvoicesPage() {
           {total > 0 && (
             <span className="text-[11px] text-muted-foreground">{total.toLocaleString()} invoice{total !== 1 ? 's' : ''}</span>
           )}
-          <Button size="sm" variant="outline" onClick={() => setSyncKey(k => k + 1)} className="gap-1 text-xs h-7">
+          <Button size="sm" variant="outline" onClick={() => setSyncKey(k => k + 1)} className="gap-1">
             <RefreshCw className="w-3 h-3" /> Sync
           </Button>
         </div>
@@ -152,13 +152,13 @@ export default function InvoicesPage() {
           <span className="text-[10px] text-muted-foreground uppercase tracking-wide">From</span>
           <Input type="date" value={draft.from}
             onChange={e => setDraft(d => ({ ...d, from: e.target.value }))}
-            className="h-7 text-xs bg-card border-border text-foreground w-34" />
+            className="h-7 text-xs text-foreground w-34" />
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-[10px] text-muted-foreground uppercase tracking-wide">To</span>
           <Input type="date" value={draft.to}
             onChange={e => setDraft(d => ({ ...d, to: e.target.value }))}
-            className="h-7 text-xs bg-card border-border text-foreground w-34" />
+            className="h-7 text-xs text-foreground w-34" />
         </div>
         <div className="flex flex-col gap-0.5">
           <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Customer</span>
@@ -180,11 +180,11 @@ export default function InvoicesPage() {
             className="w-36"
           />
         </div>
-        <Button size="sm" onClick={applyFilters} disabled={!hasDraftChange && !hasActiveFilters} className="h-7 text-xs">
+        <Button size="sm" onClick={applyFilters} disabled={!hasDraftChange && !hasActiveFilters}>
           Search
         </Button>
         {hasActiveFilters && (
-          <Button size="sm" variant="ghost" onClick={clearFilters} className="h-7 text-xs text-muted-foreground hover:text-foreground">
+          <Button size="sm" variant="ghost" onClick={clearFilters} className="text-muted-foreground hover:text-foreground">
             Clear
           </Button>
         )}

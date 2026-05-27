@@ -317,7 +317,7 @@ export default function EditSOPage() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-foreground text-sm font-medium">Line Items</span>
-              <Button size="sm" variant="outline" onClick={() => addLine(true)} className="gap-1 text-xs h-7">
+              <Button size="sm" variant="outline" onClick={() => addLine(true)} className="gap-1">
                 <Plus className="w-3 h-3" /> Add Item
               </Button>
             </div>
