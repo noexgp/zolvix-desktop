@@ -1,15 +1,24 @@
 import React from 'react'
 import { pdf, Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer'
-import NotoSansRegular from '@/assets/fonts/NotoSans-Regular.ttf'
-import NotoSansBold from '@/assets/fonts/NotoSans-Bold.ttf'
+import NotoSansRegularUrl from '@/assets/fonts/NotoSans-Regular.ttf?url'
+import NotoSansBoldUrl from '@/assets/fonts/NotoSans-Bold.ttf?url'
 
-Font.register({
-  family: 'NotoSans',
-  fonts: [
-    { src: NotoSansRegular as string, fontWeight: 'normal' },
-    { src: NotoSansBold as string, fontWeight: 'bold' },
-  ],
-})
+// @react-pdf/renderer cannot fetch Vite asset URLs directly in Electron.
+// We use the browser fetch API to load the font bytes and register as base64.
+let fontsReady = false
+async function ensureFonts(): Promise<void> {
+  if (fontsReady) return
+  const toDataUrl = async (url: string) => {
+    const buf = await fetch(url).then(r => r.arrayBuffer())
+    const bytes = new Uint8Array(buf)
+    let b = ''
+    for (let i = 0; i < bytes.byteLength; i++) b += String.fromCharCode(bytes[i])
+    return `data:font/truetype;base64,${btoa(b)}`
+  }
+  const [regular, bold] = await Promise.all([toDataUrl(NotoSansRegularUrl), toDataUrl(NotoSansBoldUrl)])
+  Font.register({ family: 'NotoSans', fonts: [{ src: regular, fontWeight: 'normal' }, { src: bold, fontWeight: 'bold' }] })
+  fontsReady = true
+}
 
 const BLUE = '#2563eb'
 const DARK = '#0f172a'
@@ -418,6 +427,7 @@ function openPdfBlob(blob: Blob, filename: string): void {
 
 export async function printInvoicePdf(inv: InvoiceDoc, businessName?: string): Promise<void> {
   try {
+    await ensureFonts()
     const blob = await pdf(<InvoicePdf inv={inv} businessName={businessName} />).toBlob()
     openPdfBlob(blob, `${inv.invoiceNumber}.pdf`)
   } catch (err) {
@@ -428,6 +438,7 @@ export async function printInvoicePdf(inv: InvoiceDoc, businessName?: string): P
 
 export async function printSOPdf(so: SODoc, businessName?: string): Promise<void> {
   try {
+    await ensureFonts()
     const blob = await pdf(<SOPdf so={so} businessName={businessName} />).toBlob()
     openPdfBlob(blob, `${so.soNumber}.pdf`)
   } catch (err) {
