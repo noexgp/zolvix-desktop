@@ -62,6 +62,7 @@ const s = StyleSheet.create({
   tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: BORDER, borderBottomStyle: 'solid', paddingHorizontal: 10, paddingVertical: 6 },
   tdText: { fontSize: 9 },
   tdSub: { fontSize: 7.5, color: MUTED, marginTop: 1 },
+  tdDiscount: { fontSize: 7.5, color: '#dc2626', marginTop: 1 },
   colNum: { width: 18 },
   colProduct: { flex: 1 },
   colQty: { width: 50, textAlign: 'right' },
@@ -116,6 +117,7 @@ interface DocDetail {
   id: string
   quantity: number
   unitPrice: number | string
+  discount?: number | string
   total: number | string
   product?: { name?: string; sku?: string }
 }
@@ -181,18 +183,22 @@ function ItemsTable({ details, columns }: {
         <Text style={[s.thText, s.colPrice]}>{columns.price}</Text>
         <Text style={[s.thText, s.colAmount]}>{columns.amount}</Text>
       </View>
-      {details.map((d, i) => (
-        <View key={d.id ?? i} style={s.tableRow}>
-          <Text style={[s.tdText, s.colNum]}>{i + 1}</Text>
-          <View style={s.colProduct}>
-            <Text style={s.tdText}>{d.product?.name ?? '—'}</Text>
-            {d.product?.sku ? <Text style={s.tdSub}>SKU: {d.product.sku}</Text> : null}
+      {details.map((d, i) => {
+        const lineDisc = Number(d.discount ?? 0)
+        return (
+          <View key={d.id ?? i} style={s.tableRow}>
+            <Text style={[s.tdText, s.colNum]}>{i + 1}</Text>
+            <View style={s.colProduct}>
+              <Text style={s.tdText}>{d.product?.name ?? '—'}</Text>
+              {d.product?.sku ? <Text style={s.tdSub}>SKU: {d.product.sku}</Text> : null}
+              {lineDisc > 0 ? <Text style={s.tdDiscount}>Discount: -{fmt(lineDisc)}</Text> : null}
+            </View>
+            <Text style={[s.tdText, s.colQty]}>{d.quantity}</Text>
+            <Text style={[s.tdText, s.colPrice]}>{fmt(d.unitPrice)}</Text>
+            <Text style={[s.tdText, s.colAmount]}>{fmt(d.total)}</Text>
           </View>
-          <Text style={[s.tdText, s.colQty]}>{d.quantity}</Text>
-          <Text style={[s.tdText, s.colPrice]}>{fmt(d.unitPrice)}</Text>
-          <Text style={[s.tdText, s.colAmount]}>{fmt(d.total)}</Text>
-        </View>
-      ))}
+        )
+      })}
     </View>
   )
 }
