@@ -3,7 +3,7 @@ import type { CartItem } from '@/lib/cart'
 import { lineTotal } from '@/lib/cart'
 import type { CachedCustomer } from '@/lib/db'
 import { Button } from '@/components/ui/button'
-import { Minus, Plus, X } from 'lucide-react'
+import { Minus, Plus, X, ShoppingCart, Trash2, Pause, ArrowRight } from 'lucide-react'
 
 function QtyInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   const [text, setText] = useState(String(value))
@@ -22,7 +22,7 @@ function QtyInput({ value, onChange }: { value: number; onChange: (n: number) =>
       }}
       onBlur={() => { if (!/^[1-9][0-9]*$/.test(text)) setText(String(value)) }}
       onFocus={e => e.target.select()}
-      className="w-9 bg-transparent text-foreground text-xs text-center outline-none focus:bg-background rounded"
+      className="w-8 bg-transparent text-foreground text-sm font-medium text-center outline-none"
     />
   )
 }
@@ -58,46 +58,65 @@ export default function CartSidebar({ cart, customer, total, onUpdateQty, onRemo
       </div>
 
       {/* Cart controls */}
-      <div className="shrink-0 flex items-center justify-between px-3 py-1.5 bg-card border-b border-border">
-        <span className="text-muted-foreground text-xs">Cart</span>
+      <div className="shrink-0 flex items-center justify-between px-3 py-2 bg-card border-b border-border">
+        <span className="text-muted-foreground text-xs font-medium">
+          {cart.length === 0 ? 'Cart' : `${cart.length} ${cart.length === 1 ? 'line' : 'lines'}`}
+        </span>
         {cart.length > 0 && (
-          <button onClick={onClear} className="text-destructive text-xs hover:underline">Clear</button>
+          <button
+            onClick={onClear}
+            className="flex items-center gap-1 text-destructive text-xs hover:bg-destructive/10 rounded px-2 py-1 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Trash2 className="w-3 h-3" /> Clear
+          </button>
         )}
       </div>
 
       {/* Cart items */}
-      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2">
+      <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1.5">
         {cart.length === 0 && (
-          <p className="text-center text-muted-foreground text-xs py-8">Cart is empty</p>
+          <div className="flex flex-col items-center justify-center text-muted-foreground py-16 gap-2">
+            <ShoppingCart className="w-8 h-8 opacity-30" />
+            <p className="text-xs">Cart is empty</p>
+            <p className="text-[10px] opacity-70">Tap a product to add it</p>
+          </div>
         )}
         {cart.map(item => (
-          <div key={item.product.id} className="bg-background rounded-md p-2.5 space-y-1.5">
+          <div key={item.product.id} className="bg-background rounded-lg p-2.5 space-y-2 border border-transparent hover:border-border transition-colors">
             <div className="flex items-start justify-between gap-2">
-              <span className="text-foreground text-xs leading-tight flex-1">{item.product.name}</span>
-              <span className="text-primary text-xs font-semibold whitespace-nowrap">
-                ₱{fmt(lineTotal(item.product, item.quantity))}
-              </span>
+              <span className="text-foreground text-xs font-medium leading-tight flex-1 line-clamp-2">{item.product.name}</span>
+              <button
+                onClick={() => onRemoveItem(item.product.id)}
+                aria-label="Remove item"
+                className="text-muted-foreground hover:text-destructive cursor-pointer shrink-0 rounded p-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center bg-card rounded border border-border">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center bg-card rounded-lg border border-border overflow-hidden">
                 <button
                   onClick={() => onUpdateQty(item.product.id, item.quantity - 1)}
-                  className="px-2 py-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="Decrease quantity"
+                  className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Minus className="w-3 h-3" />
                 </button>
                 <QtyInput value={item.quantity} onChange={qty => onUpdateQty(item.product.id, qty)} />
                 <button
                   onClick={() => onUpdateQty(item.product.id, item.quantity + 1)}
-                  className="px-2 py-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="Increase quantity"
+                  className="px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-accent cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   <Plus className="w-3 h-3" />
                 </button>
               </div>
-              <span className="text-muted-foreground text-[10px]">₱{fmt(item.product.price)} ea</span>
-              <button onClick={() => onRemoveItem(item.product.id)} className="ml-auto text-destructive hover:text-destructive/80">
-                <X className="w-3 h-3" />
-              </button>
+              <div className="text-right">
+                <div className="text-foreground text-sm font-semibold whitespace-nowrap">
+                  ₱{fmt(lineTotal(item.product, item.quantity))}
+                </div>
+                <div className="text-muted-foreground text-[10px]">₱{fmt(item.product.price)} ea</div>
+              </div>
             </div>
           </div>
         ))}
@@ -109,19 +128,22 @@ export default function CartSidebar({ cart, customer, total, onUpdateQty, onRemo
           <Button
             variant="secondary"
             size="sm"
-            className="flex-1 text-xs"
+            className="flex-1 h-10 text-xs gap-1.5"
             disabled={cart.length === 0}
             onClick={onHold}
           >
-            Hold F2
+            <Pause className="w-3.5 h-3.5" /> Hold
+            <kbd className="text-[9px] opacity-60 font-mono">F2</kbd>
           </Button>
           <Button
             size="sm"
-            className="flex-[2] text-sm font-semibold"
+            className="flex-[2] h-10 text-sm font-semibold gap-1.5"
             disabled={cart.length === 0}
             onClick={onCheckout}
           >
-            Checkout F3 →
+            Checkout
+            <kbd className="text-[9px] opacity-70 font-mono">F3</kbd>
+            <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
