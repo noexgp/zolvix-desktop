@@ -3,7 +3,7 @@ import type { CartItem } from '@/lib/cart'
 import { lineTotal } from '@/lib/cart'
 import type { CachedCustomer } from '@/lib/db'
 import { Button } from '@/components/ui/button'
-import { Minus, Plus, X, ShoppingCart, Trash2, Pause, ArrowRight } from 'lucide-react'
+import { Minus, Plus, X, ShoppingCart, Trash2, Pause, ArrowRight, Tag } from 'lucide-react'
 
 function QtyInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   const [text, setText] = useState(String(value))
@@ -31,18 +31,22 @@ interface Props {
   cart: CartItem[]
   customer: CachedCustomer | null
   total: number
+  discountLabel: string | null
+  discountAmount: number
   onUpdateQty: (productId: string, qty: number) => void
   onRemoveItem: (productId: string) => void
   onClear: () => void
   onHold: () => void
   onCheckout: () => void
+  onOpenDiscount: () => void
+  onRemoveDiscount: () => void
 }
 
 function fmt(n: number) {
   return n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default function CartSidebar({ cart, customer, total, onUpdateQty, onRemoveItem, onClear, onHold, onCheckout }: Props) {
+export default function CartSidebar({ cart, customer, total, discountLabel, discountAmount, onUpdateQty, onRemoveItem, onClear, onHold, onCheckout, onOpenDiscount, onRemoveDiscount }: Props) {
   const itemCount = cart.reduce((s, i) => s + i.quantity, 0)
   const customerName = customer?.name ?? 'Walk-in'
 
@@ -123,7 +127,26 @@ export default function CartSidebar({ cart, customer, total, onUpdateQty, onRemo
       </div>
 
       {/* Footer */}
-      <div className="shrink-0 bg-card border-t border-border p-3">
+      <div className="shrink-0 bg-card border-t border-border p-3 space-y-2">
+        {discountLabel ? (
+          <div className="flex items-center justify-between bg-background border border-border rounded-lg px-2.5 py-1.5">
+            <span className="text-xs text-foreground truncate">{discountLabel}</span>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-semibold text-green-500">−₱{fmt(discountAmount)}</span>
+              <button onClick={onRemoveDiscount} aria-label="Remove discount" className="text-muted-foreground hover:text-destructive cursor-pointer rounded p-0.5 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={onOpenDiscount}
+            disabled={cart.length === 0}
+            className="w-full flex items-center justify-center gap-1.5 border border-dashed border-border text-muted-foreground text-xs rounded-lg py-2 hover:text-foreground hover:border-foreground/30 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Tag className="w-3.5 h-3.5" /> SC / PWD / Solo Parent
+          </button>
+        )}
         <div className="flex gap-2">
           <Button
             variant="secondary"
