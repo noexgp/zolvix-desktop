@@ -41,6 +41,7 @@ export interface CachedProduct {
   isActive: boolean
   updatedAt: string
   vatType?: string
+  scDiscountExempt?: boolean
 }
 
 export interface CachedCustomer {

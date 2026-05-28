@@ -9,6 +9,7 @@ interface ApiProduct {
   id: string; name: string; sku?: string; barcode?: string; unit?: string
   price: number | string; stock?: number; categoryId?: string; categoryName?: string
   category?: { name?: string }; isActive: boolean; updatedAt: string
+  vatType?: string; scDiscountExempt?: boolean
 }
 
 const PAGE_SIZE = 20
@@ -39,6 +40,8 @@ export default function ProductsPage() {
           price: Number(p.price), stock: p.stock ?? 0, categoryId: p.categoryId ?? '',
           categoryName: p.categoryName ?? p.category?.name ?? '',
           isActive: p.isActive, updatedAt: p.updatedAt,
+          vatType: p.vatType ?? 'VATABLE',
+          scDiscountExempt: p.scDiscountExempt ?? false,
         })))
         await setCacheMeta('products')
         setProducts(items)
