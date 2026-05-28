@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { RefObject } from 'react'
 import type { CachedProduct, CachedCustomer } from '@/lib/db'
 import type { CartItem } from '@/lib/cart'
@@ -23,10 +23,14 @@ function fmt(n: number) {
 }
 
 const LOW_STOCK = 5
+const GRID_COLS = 4
 
 export default function ProductGrid({ products, customers, customer, cart, categoryNames, searchRef, onAddToCart, onSelectCustomer }: Props) {
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState<string | null>(null)
+  const [highlight, setHighlight] = useState(0)
+  const [searchFocused, setSearchFocused] = useState(false)
+  const gridRef = useRef<HTMLDivElement>(null)
 
   const categories = useMemo(() => {
     const map = new Map<string, string>()
@@ -55,6 +59,32 @@ export default function ProductGrid({ products, customers, customer, cart, categ
   const customerItems = useMemo(() =>
     customers.map(c => ({ id: c.id, label: c.name })), [customers])
 
+  // Reset the keyboard highlight to the top match whenever the result set changes.
+  useEffect(() => { setHighlight(0) }, [search, categoryId])
+
+  // Keep the highlighted card scrolled into view while navigating.
+  useEffect(() => {
+    if (!searchFocused) return
+    gridRef.current?.querySelector(`[data-idx="${highlight}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [highlight, searchFocused])
+
+  function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (filtered.length === 0) return
+    const last = filtered.length - 1
+    if (e.key === 'ArrowRight') { e.preventDefault(); setHighlight(i => Math.min(last, i + 1)) }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); setHighlight(i => Math.max(0, i - 1)) }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(i => Math.min(last, i + GRID_COLS)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(i => Math.max(0, i - GRID_COLS)) }
+    else if (e.key === 'Enter') {
+      e.preventDefault()
+      const p = filtered[highlight]
+      if (p && p.stock !== 0) {
+        onAddToCart(p)
+        e.currentTarget.select()
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Top bar */}
@@ -66,6 +96,9 @@ export default function ProductGrid({ products, customers, customer, cart, categ
             placeholder="Search products or scan barcode...  (F1)"
             value={search}
             onChange={e => setSearch(e.target.value)}
+            onKeyDown={onSearchKeyDown}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
             className="h-9 text-sm pl-8"
           />
         </div>
@@ -113,15 +146,17 @@ export default function ProductGrid({ products, customers, customer, cart, categ
       </div>
 
       {/* Product grid */}
-      <div className="flex-1 overflow-y-auto p-3 grid grid-cols-4 gap-2.5 content-start">
-        {filtered.map(product => {
+      <div ref={gridRef} className="flex-1 overflow-y-auto p-3 grid grid-cols-4 gap-2.5 content-start">
+        {filtered.map((product, idx) => {
           const qty = cartQty.get(product.id) ?? 0
           const inCart = qty > 0
           const outOfStock = product.stock === 0
           const lowStock = !outOfStock && product.stock <= LOW_STOCK
+          const highlighted = searchFocused && idx === highlight
           return (
             <button
               key={product.id}
+              data-idx={idx}
               onClick={() => onAddToCart(product)}
               disabled={outOfStock}
               className={cn(
@@ -129,6 +164,7 @@ export default function ProductGrid({ products, customers, customer, cart, categ
                 'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 'hover:border-primary/60 hover:bg-accent/40',
                 inCart && !outOfStock ? 'border-primary/50 ring-1 ring-primary/30' : 'border-border',
+                highlighted && 'border-primary ring-2 ring-primary bg-accent/40',
                 outOfStock && 'opacity-55 cursor-not-allowed hover:border-border hover:bg-card'
               )}
             >
