@@ -1,8 +1,31 @@
+import { useState, useEffect } from 'react'
 import type { CartItem } from '@/lib/cart'
 import { lineTotal } from '@/lib/cart'
 import type { CachedCustomer } from '@/lib/db'
 import { Button } from '@/components/ui/button'
 import { Minus, Plus, X } from 'lucide-react'
+
+function QtyInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const [text, setText] = useState(String(value))
+  useEffect(() => { setText(String(value)) }, [value])
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={text}
+      onChange={e => {
+        const v = e.target.value.replace(/[^0-9]/g, '')
+        setText(v)
+        const n = parseInt(v, 10)
+        if (!isNaN(n) && n >= 1) onChange(n)
+      }}
+      onBlur={() => { if (!/^[1-9][0-9]*$/.test(text)) setText(String(value)) }}
+      onFocus={e => e.target.select()}
+      className="w-9 bg-transparent text-foreground text-xs text-center outline-none focus:bg-background rounded"
+    />
+  )
+}
 
 interface Props {
   cart: CartItem[]
@@ -26,12 +49,12 @@ export default function CartSidebar({ cart, customer, total, onUpdateQty, onRemo
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* Customer-facing total banner */}
-      <div className="shrink-0 bg-gradient-to-br from-blue-700 to-violet-700 px-4 py-4 text-center border-b-2 border-violet-600">
-        <p className="text-blue-200 text-[10px] tracking-[0.15em] uppercase mb-0.5">Amount Due</p>
+      <div className="shrink-0 bg-gradient-to-br from-orange-500 to-amber-600 px-4 py-4 text-center border-b-2 border-orange-600">
+        <p className="text-orange-100 text-[10px] tracking-[0.15em] uppercase mb-0.5">Amount Due</p>
         <p className="text-white text-4xl font-extrabold tracking-tight leading-none">
           ₱{fmt(total)}
         </p>
-        <p className="text-blue-300 text-[10px] mt-1">{customerName} · {itemCount} {itemCount === 1 ? 'item' : 'items'}</p>
+        <p className="text-orange-100 text-[10px] mt-1">{customerName} · {itemCount} {itemCount === 1 ? 'item' : 'items'}</p>
       </div>
 
       {/* Cart controls */}
@@ -63,7 +86,7 @@ export default function CartSidebar({ cart, customer, total, onUpdateQty, onRemo
                 >
                   <Minus className="w-3 h-3" />
                 </button>
-                <span className="text-foreground text-xs px-2 min-w-[24px] text-center">{item.quantity}</span>
+                <QtyInput value={item.quantity} onChange={qty => onUpdateQty(item.product.id, qty)} />
                 <button
                   onClick={() => onUpdateQty(item.product.id, item.quantity + 1)}
                   className="px-2 py-0.5 text-muted-foreground hover:text-foreground"
