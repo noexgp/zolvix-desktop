@@ -63,11 +63,15 @@ export default function App() {
         const user = await getSession()
         if (user) {
           setCurrentUser(user)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let business: any = null
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          let terminal: any = null
           try {
             const bRes = await apiFetch('/api/settings/business')
             if (bRes.ok) {
-              const b = await bRes.json()
-              setBusinessSettings({ bypassApproval: !(b.requireSoApproval ?? true), name: b.name ?? '' })
+              business = await bRes.json()
+              setBusinessSettings({ bypassApproval: !(business.requireSoApproval ?? true), name: business.name ?? '' })
             }
           } catch { /* non-critical */ }
           if (storedTerminalId) {
@@ -75,16 +79,39 @@ export default function App() {
               const tRes = await apiFetch(`/api/terminals/${storedTerminalId}`)
               if (tRes.ok) {
                 const d = await tRes.json()
-                const t = d.terminal
+                terminal = d.terminal
                 setTerminalConfig({
-                  id: t.id, name: t.name,
-                  lx310PrinterName: t.lx310PrinterName ?? null,
-                  formRowOffset: t.formRowOffset ?? 3,
-                  formColOffset: t.formColOffset ?? 5,
-                  paperWidth: t.paperWidth ?? 8.5,
-                  paperHeight: t.paperHeight ?? 11,
+                  id: terminal.id, name: terminal.name,
+                  lx310PrinterName: terminal.lx310PrinterName ?? null,
+                  formRowOffset: terminal.formRowOffset ?? 3,
+                  formColOffset: terminal.formColOffset ?? 5,
+                  paperWidth: terminal.paperWidth ?? 8.5,
+                  paperHeight: terminal.paperHeight ?? 11,
                 })
               }
+            } catch { /* non-critical */ }
+          }
+          // Sync BIR receipt details from web business settings + this terminal so the
+          // POS receipt always reflects server-side config. Cached locally for offline.
+          if (business) {
+            try {
+              const existing = (await window.electron.store.get('birConfig')) as Record<string, unknown> | undefined
+              await window.electron.store.set('birConfig', {
+                ...existing,
+                businessName: business.name ?? '',
+                address: business.address ?? '',
+                tin: business.tin ?? '',
+                vatRegistered: (business.vatStatus ?? 'VAT') === 'VAT',
+                vatRate: 12,
+                invoiceTitle: 'SALES INVOICE',
+                ptuNo: terminal?.permitNumber ?? business.ptuNumber ?? '',
+                min: terminal?.machineIdentificationNo ?? business.machineIdentificationNo ?? '',
+                serialNo: terminal?.serialNumber ?? '',
+                accreditation: business.accreditorNo ?? '',
+                softwareProvider: business.accreditorName ?? 'Zolvix POS',
+                softwareTin: business.accreditorTin ?? '',
+                footerNote: (existing?.footerNote as string) || 'Thank you, come again!',
+              })
             } catch { /* non-critical */ }
           }
         }
