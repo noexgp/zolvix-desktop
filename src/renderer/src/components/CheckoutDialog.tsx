@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import { nanoid } from 'nanoid'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { X, Plus, Check } from 'lucide-react'
+import { X, Plus, Check, Banknote, CreditCard, Smartphone, ScrollText, Clock, Gift } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { printThermal } from '@/lib/escp'
 import { cn } from '@/lib/utils'
@@ -13,17 +14,18 @@ import type { CachedCustomer } from '@/lib/db'
 
 type PaymentMethod = 'cash' | 'card' | 'ewallet' | 'check' | 'charge' | 'gc'
 
-const METHODS: { id: PaymentMethod; label: string }[] = [
-  { id: 'cash',    label: 'Cash' },
-  { id: 'card',    label: 'Card' },
-  { id: 'ewallet', label: 'E-wallet' },
-  { id: 'check',   label: 'Check' },
-  { id: 'charge',  label: 'Charge' },
-  { id: 'gc',      label: 'GC' },
+const METHODS: { id: PaymentMethod; label: string; icon: LucideIcon }[] = [
+  { id: 'cash',    label: 'Cash',     icon: Banknote },
+  { id: 'card',    label: 'Card',     icon: CreditCard },
+  { id: 'ewallet', label: 'E-wallet', icon: Smartphone },
+  { id: 'check',   label: 'Check',    icon: ScrollText },
+  { id: 'charge',  label: 'Charge',   icon: Clock },
+  { id: 'gc',      label: 'GC',       icon: Gift },
 ]
 
 const CARD_PROVIDERS = ['Visa', 'Mastercard', 'Amex', 'JCB', 'UnionPay']
 const EWALLET_PROVIDERS = ['GCash', 'Maya', 'ShopeePay', 'Grab Pay']
+const CASH_BILLS = [20, 50, 100, 200, 500, 1000]
 
 function fmt(n: number) {
   return n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -76,6 +78,15 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
 
   function removePayment(id: string) {
     setPayments(prev => prev.filter(p => p.id !== id))
+  }
+
+  // Set this row's amount to cover the whole remaining balance.
+  function payRest(id: string) {
+    setPayments(prev => {
+      const others = prev.filter(p => p.id !== id).reduce((s, p) => s + (p.amount || 0), 0)
+      const need = Math.round(Math.max(0, total - others) * 100) / 100
+      return prev.map(p => p.id === id ? { ...p, amount: need } : p)
+    })
   }
 
   async function handleSubmit() {
@@ -169,82 +180,167 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
               <p className="text-green-500 text-4xl font-extrabold">₱{fmt(success.change)}</p>
             </div>
           )}
-          <Button className="w-full" onClick={onSuccess}>New Sale</Button>
+          <Button autoFocus className="w-full" onClick={onSuccess}>New Sale</Button>
         </div>
       </div>
     )
   }
 
+  const isSplit = payments.length > 1
+  const pct = total > 0 ? Math.min(100, (paid / total) * 100) : 0
+
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-      <div className="bg-card border border-border rounded-xl w-[520px] max-h-[90vh] overflow-y-auto shadow-2xl">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-card border border-border rounded-xl w-[540px] max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="shrink-0 flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
             <h2 className="text-foreground font-semibold">Checkout</h2>
-            <p className="text-muted-foreground text-xs">{customer?.name ?? 'Walk-in'} · Total ₱{fmt(total)}</p>
+            <p className="text-muted-foreground text-xs">{customer?.name ?? 'Walk-in'} · {cart.length} {cart.length === 1 ? 'item' : 'items'}</p>
           </div>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
-            <X className="w-4 h-4" />
+          <button
+            onClick={onClose}
+            aria-label="Close checkout"
+            className="text-muted-foreground hover:text-foreground rounded-md p-1 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Payments */}
-        <div className="p-5 space-y-4">
+        {/* Sticky summary — always visible while splitting */}
+        <div className="shrink-0 px-5 py-3 border-b border-border bg-background/50 space-y-2">
+          <div className="flex items-end justify-between">
+            <div>
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">Total Due</p>
+              <p className="text-foreground text-2xl font-bold leading-none">₱{fmt(total)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">{rem > 0.005 ? 'Remaining' : 'Status'}</p>
+              {rem > 0.005 ? (
+                <p className="text-destructive text-lg font-bold leading-none">₱{fmt(rem)}</p>
+              ) : (
+                <p className="text-green-500 text-lg font-bold leading-none flex items-center gap-1 justify-end">
+                  <Check className="w-4 h-4" /> Covered
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div
+              className={cn('h-full rounded-full transition-all duration-200', rem > 0.005 ? 'bg-primary' : 'bg-green-500')}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Scrollable payment list */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           {payments.map((payment, idx) => (
             <div key={payment.id} className="bg-background rounded-lg p-4 space-y-3 border border-border">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground text-xs font-medium">Payment {idx + 1}</span>
-                {payments.length > 1 && (
-                  <button onClick={() => removePayment(payment.id)} className="text-destructive text-xs">Remove</button>
-                )}
-              </div>
-
-              {/* Method selector */}
-              <div className="flex gap-1 flex-wrap">
-                {METHODS.map(m => (
+              {isSplit && (
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground text-xs font-medium">Payment {idx + 1}</span>
                   <button
-                    key={m.id}
-                    onClick={() => updatePayment(payment.id, { method: m.id })}
-                    className={cn(
-                      'px-3 py-1 rounded text-xs transition-colors',
-                      payment.method === m.id
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-card border border-border text-muted-foreground hover:text-foreground'
-                    )}
+                    onClick={() => removePayment(payment.id)}
+                    className="text-destructive text-xs hover:underline cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded px-1"
                   >
-                    {m.label}
+                    Remove
                   </button>
-                ))}
+                </div>
+              )}
+
+              {/* Method selector — icon grid, touch-friendly */}
+              <div className="grid grid-cols-3 gap-1.5">
+                {METHODS.map(m => {
+                  const Icon = m.icon
+                  const selected = payment.method === m.id
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => updatePayment(payment.id, { method: m.id })}
+                      className={cn(
+                        'flex flex-col items-center gap-1 rounded-lg py-2 text-[11px] font-medium border transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                        selected
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
+                      )}
+                    >
+                      <Icon className="w-4 h-4" />
+                      {m.label}
+                    </button>
+                  )
+                })}
               </div>
 
-              {/* Amount */}
-              <div className="space-y-1">
-                <Label className="text-muted-foreground text-xs">Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={payment.amount || ''}
-                  onChange={e => updatePayment(payment.id, { amount: parseFloat(e.target.value) || 0 })}
-                  className="h-8 text-sm"
-                />
+              {/* Amount + Pay rest */}
+              <div className="flex gap-2 items-end">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-muted-foreground text-xs">Amount</Label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={payment.amount || ''}
+                      onChange={e => updatePayment(payment.id, { amount: parseFloat(e.target.value) || 0 })}
+                      className="h-9 text-sm pl-6"
+                    />
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-9 whitespace-nowrap text-xs"
+                  onClick={() => payRest(payment.id)}
+                >
+                  Pay rest
+                </Button>
               </div>
 
-              {/* Cash: tendered */}
+              {/* Cash: quick tender + change */}
               {payment.method === 'cash' && (
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs">Cash Tendered (optional)</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder={String(payment.amount)}
-                    value={payment.cashTendered ?? ''}
-                    onChange={e => updatePayment(payment.id, { cashTendered: parseFloat(e.target.value) || undefined })}
-                    className="h-8 text-sm"
-                  />
-                  {changeDue > 0.005 && (
-                    <p className="text-green-500 text-xs">Change: ₱{fmt(changeDue)}</p>
-                  )}
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      onClick={() => updatePayment(payment.id, { cashTendered: payment.amount })}
+                      className="px-2.5 py-1 rounded-md border border-border bg-card text-xs text-foreground hover:border-primary/50 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      Exact
+                    </button>
+                    {CASH_BILLS.filter(b => b > payment.amount).slice(0, 4).map(b => (
+                      <button
+                        key={b}
+                        onClick={() => updatePayment(payment.id, { cashTendered: b })}
+                        className={cn(
+                          'px-2.5 py-1 rounded-md border text-xs cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                          payment.cashTendered === b
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-card text-foreground hover:border-primary/50'
+                        )}
+                      >
+                        ₱{b}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₱</span>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Cash received"
+                        value={payment.cashTendered ?? ''}
+                        onChange={e => updatePayment(payment.id, { cashTendered: parseFloat(e.target.value) || undefined })}
+                        className="h-9 text-sm pl-6"
+                      />
+                    </div>
+                    {changeDue > 0.005 && (
+                      <div className="text-right shrink-0">
+                        <span className="text-muted-foreground text-[10px] block leading-none">Change</span>
+                        <span className="text-green-500 text-base font-bold leading-none">₱{fmt(changeDue)}</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -256,7 +352,7 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
                     <select
                       value={payment.cardProvider ?? ''}
                       onChange={e => updatePayment(payment.id, { cardProvider: e.target.value })}
-                      className="w-full bg-card border border-border rounded text-foreground text-xs h-8 px-2"
+                      className="w-full bg-card border border-border rounded text-foreground text-xs h-9 px-2 cursor-pointer"
                     >
                       <option value="">Select...</option>
                       {CARD_PROVIDERS.map(p => <option key={p}>{p}</option>)}
@@ -264,7 +360,7 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
                   </div>
                   <div className="space-y-1">
                     <Label className="text-muted-foreground text-xs">Approval Code</Label>
-                    <Input value={payment.approvalCode ?? ''} onChange={e => updatePayment(payment.id, { approvalCode: e.target.value })} className="h-8 text-xs" />
+                    <Input value={payment.approvalCode ?? ''} onChange={e => updatePayment(payment.id, { approvalCode: e.target.value })} className="h-9 text-xs" />
                   </div>
                 </div>
               )}
@@ -277,7 +373,7 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
                     <select
                       value={payment.ewalletProvider ?? ''}
                       onChange={e => updatePayment(payment.id, { ewalletProvider: e.target.value })}
-                      className="w-full bg-card border border-border rounded text-foreground text-xs h-8 px-2"
+                      className="w-full bg-card border border-border rounded text-foreground text-xs h-9 px-2 cursor-pointer"
                     >
                       <option value="">Select...</option>
                       {EWALLET_PROVIDERS.map(p => <option key={p}>{p}</option>)}
@@ -285,7 +381,7 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
                   </div>
                   <div className="space-y-1">
                     <Label className="text-muted-foreground text-xs">Reference No.</Label>
-                    <Input value={payment.referenceNo ?? ''} onChange={e => updatePayment(payment.id, { referenceNo: e.target.value })} className="h-8 text-xs" />
+                    <Input value={payment.referenceNo ?? ''} onChange={e => updatePayment(payment.id, { referenceNo: e.target.value })} className="h-9 text-xs" />
                   </div>
                 </div>
               )}
@@ -295,19 +391,19 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <Label className="text-muted-foreground text-xs">Check No.</Label>
-                    <Input value={payment.checkNumber ?? ''} onChange={e => updatePayment(payment.id, { checkNumber: e.target.value })} className="h-8 text-xs" />
+                    <Input value={payment.checkNumber ?? ''} onChange={e => updatePayment(payment.id, { checkNumber: e.target.value })} className="h-9 text-xs" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-muted-foreground text-xs">Bank</Label>
-                    <Input value={payment.bankName ?? ''} onChange={e => updatePayment(payment.id, { bankName: e.target.value })} className="h-8 text-xs" />
+                    <Input value={payment.bankName ?? ''} onChange={e => updatePayment(payment.id, { bankName: e.target.value })} className="h-9 text-xs" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-muted-foreground text-xs">Date</Label>
-                    <Input type="date" value={payment.checkDate ?? ''} onChange={e => updatePayment(payment.id, { checkDate: e.target.value })} className="h-8 text-xs" />
+                    <Input type="date" value={payment.checkDate ?? ''} onChange={e => updatePayment(payment.id, { checkDate: e.target.value })} className="h-9 text-xs" />
                   </div>
                   <div className="space-y-1">
                     <Label className="text-muted-foreground text-xs">Payor Name</Label>
-                    <Input value={payment.checkPayorName ?? ''} onChange={e => updatePayment(payment.id, { checkPayorName: e.target.value })} className="h-8 text-xs" />
+                    <Input value={payment.checkPayorName ?? ''} onChange={e => updatePayment(payment.id, { checkPayorName: e.target.value })} className="h-9 text-xs" />
                   </div>
                 </div>
               )}
@@ -316,44 +412,34 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
               {payment.method === 'gc' && (
                 <div className="space-y-1">
                   <Label className="text-muted-foreground text-xs">Certificate Code</Label>
-                  <Input value={payment.referenceNo ?? ''} onChange={e => updatePayment(payment.id, { referenceNo: e.target.value })} className="h-8 text-xs" />
+                  <Input value={payment.referenceNo ?? ''} onChange={e => updatePayment(payment.id, { referenceNo: e.target.value })} className="h-9 text-xs" />
                 </div>
               )}
             </div>
           ))}
 
-          {/* Add payment */}
+          {/* Split payment */}
           <button
             onClick={addPayment}
-            className="w-full border border-dashed border-primary/40 text-primary text-xs rounded-lg py-2 hover:bg-primary/5 flex items-center justify-center gap-1"
+            className="w-full border border-dashed border-primary/40 text-primary text-sm rounded-lg py-2.5 hover:bg-primary/5 flex items-center justify-center gap-1.5 cursor-pointer transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Plus className="w-3 h-3" /> Add Payment
+            <Plus className="w-4 h-4" /> Split payment
           </button>
+        </div>
 
-          {/* Summary */}
-          <div className="border-t border-border pt-3 space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Total</span>
-              <span className="text-foreground">₱{fmt(total)}</span>
-            </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Paid</span>
-              <span className="text-foreground">₱{fmt(paid)}</span>
-            </div>
-            <div className="flex justify-between text-sm font-semibold">
-              <span className="text-muted-foreground">Remaining</span>
-              <span className={rem > 0 ? 'text-destructive' : 'text-green-500'}>₱{fmt(rem)}</span>
-            </div>
-          </div>
-
+        {/* Sticky footer */}
+        <div className="shrink-0 border-t border-border p-4 space-y-2">
           {error && <p className="text-destructive text-xs bg-destructive/10 rounded p-2">{error}</p>}
-
           <Button
-            className="w-full font-semibold"
+            className="w-full h-11 font-semibold text-base"
             disabled={!canPay || submitting}
             onClick={handleSubmit}
           >
-            {submitting ? 'Processing...' : `Confirm Payment ₱${fmt(total)}`}
+            {submitting
+              ? 'Processing...'
+              : rem > 0.005
+                ? `₱${fmt(rem)} remaining`
+                : `Confirm ₱${fmt(total)}`}
           </Button>
         </div>
       </div>
