@@ -8,6 +8,36 @@ export interface NetworkPrinter {
   paperType: string
 }
 
+export interface BirConfig {
+  businessName: string
+  address: string
+  tin: string
+  vatRegistered: boolean
+  vatRate: number
+  invoiceTitle: string
+  ptuNo: string
+  min: string
+  serialNo: string
+  accreditation: string
+  softwareProvider: string
+  footerNote: string
+}
+
+export const DEFAULT_BIR: BirConfig = {
+  businessName: '',
+  address: '',
+  tin: '',
+  vatRegistered: true,
+  vatRate: 12,
+  invoiceTitle: 'SALES INVOICE',
+  ptuNo: '',
+  min: '',
+  serialNo: '',
+  accreditation: '',
+  softwareProvider: 'Zolvix POS',
+  footerNote: 'Thank you, come again!',
+}
+
 interface StoreSchema {
   serverUrl: string
   setupComplete: boolean
@@ -16,6 +46,7 @@ interface StoreSchema {
   thermalSource: string  // "driver:PrinterName" | "usb:0x04b8:0x0202" | ""
   thermalPaperType: string
   networkPrinters: NetworkPrinter[]
+  birConfig: BirConfig
 }
 
 export const store = new Store<StoreSchema>({
@@ -27,5 +58,6 @@ export const store = new Store<StoreSchema>({
     thermalSource: '',
     thermalPaperType: '80mm',
     networkPrinters: [],
+    birConfig: DEFAULT_BIR,
   },
 })

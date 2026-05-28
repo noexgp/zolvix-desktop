@@ -88,7 +88,7 @@ app.whenReady().then(() => {
   })
 
   // Store IPC handlers — key allowlist prevents arbitrary key read/write from renderer
-  const STORE_ALLOWED_KEYS = ['serverUrl', 'setupComplete', 'terminalId', 'theme', 'thermalSource', 'thermalPaperType', 'networkPrinters'] as const
+  const STORE_ALLOWED_KEYS = ['serverUrl', 'setupComplete', 'terminalId', 'theme', 'thermalSource', 'thermalPaperType', 'networkPrinters', 'birConfig'] as const
   type StoreKey = typeof STORE_ALLOWED_KEYS[number]
 
   ipcMain.handle('store:get', (_, key: string) => {
@@ -188,11 +188,13 @@ app.whenReady().then(() => {
     if (!source) throw new Error('POS printer not configured. Go to Settings.')
     const inv = data as import('./escp-thermal').ThermalInvoiceData
 
+    const bir = store.get('birConfig')
+
     if (source.startsWith('driver:')) {
       const printerName = source.slice(7)
       if (!printerModule) throw new Error('Printer support not available. Use the Windows build.')
       if (!printerName) throw new Error('POS printer not configured. Go to Settings.')
-      const buffer = await buildThermalBuffer(inv, paperType)
+      const buffer = await buildThermalBuffer(inv, paperType, bir)
       return new Promise<void>((resolve, reject) => {
         printerModule!.printDirect({ data: buffer, printer: printerName, type: 'RAW', success: () => resolve(), error: reject })
       })
@@ -202,7 +204,7 @@ app.whenReady().then(() => {
       const [, vidStr, pidStr] = source.split(':')
       const vid = parseInt(vidStr, 16)
       const pid = parseInt(pidStr, 16)
-      const buffer = await buildThermalBuffer(inv, paperType)
+      const buffer = await buildThermalBuffer(inv, paperType, bir)
       return printViaUsb(vid, pid, buffer)
     }
 
@@ -217,7 +219,7 @@ app.whenReady().then(() => {
     port: number
     paperType: string
   }) => {
-    const buffer = await buildThermalBuffer(data as import('./escp-thermal').ThermalInvoiceData, paperType)
+    const buffer = await buildThermalBuffer(data as import('./escp-thermal').ThermalInvoiceData, paperType, store.get('birConfig'))
     return new Promise<void>((resolve, reject) => {
       const socket = createConnection({ host: ip, port: port || 9100 }, () => {
         socket.write(buffer, () => {

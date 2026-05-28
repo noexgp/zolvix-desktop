@@ -149,6 +149,8 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
           totalAmount: total,
           createdAt: data.createdAt ?? new Date().toISOString(),
           customer: customer ? { name: customer.name } : undefined,
+          cashTendered: cashReceived > 0 ? cashReceived : undefined,
+          change: changeDue > 0 ? changeDue : undefined,
           details: cart.map(item => ({
             quantity: item.quantity,
             unitPrice: item.product.price,

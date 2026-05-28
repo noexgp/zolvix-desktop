@@ -13,6 +13,27 @@ const PAPER_TYPES = [
 
 interface UsbDevice { vid: number; pid: number; name: string; paper: string }
 
+interface BirConfig {
+  businessName: string
+  address: string
+  tin: string
+  vatRegistered: boolean
+  vatRate: number
+  invoiceTitle: string
+  ptuNo: string
+  min: string
+  serialNo: string
+  accreditation: string
+  softwareProvider: string
+  footerNote: string
+}
+
+const DEFAULT_BIR: BirConfig = {
+  businessName: '', address: '', tin: '', vatRegistered: true, vatRate: 12,
+  invoiceTitle: 'SALES INVOICE', ptuNo: '', min: '', serialNo: '',
+  accreditation: '', softwareProvider: 'Zolvix POS', footerNote: 'Thank you, come again!',
+}
+
 export default function SettingsPage() {
   const { serverUrl, setServerUrl, terminalId, terminalConfig, setTerminalConfig, thermalSource, thermalPaperType, setThermalSource, setThermalPaperType, networkPrinters, setNetworkPrinters } = useAppStore()
   const [url, setUrl] = useState(serverUrl)
@@ -27,6 +48,7 @@ export default function SettingsPage() {
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([])
   const [netPrinters, setNetPrinters] = useState<NetworkPrinter[]>(networkPrinters)
   const [newNet, setNewNet] = useState({ label: '', ip: '', port: '9100', paperType: '80mm' })
+  const [bir, setBir] = useState<BirConfig>(DEFAULT_BIR)
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [loadError, setLoadError] = useState('')
@@ -51,6 +73,9 @@ export default function SettingsPage() {
     setThermalSelected(thermalSource)
     setThermalPaper(thermalPaperType || '80mm')
     window.electron.print.detectUsb().then(setUsbDevices).catch(() => {})
+    window.electron.store.get('birConfig')
+      .then(v => { if (v) setBir({ ...DEFAULT_BIR, ...(v as Partial<BirConfig>) }) })
+      .catch(() => {})
   }, [terminalConfig])
 
   async function handleSave() {
@@ -63,6 +88,7 @@ export default function SettingsPage() {
       await window.electron.store.set('thermalSource', thermalSelected)
       await window.electron.store.set('thermalPaperType', thermalPaper)
       await window.electron.store.set('networkPrinters', netPrinters)
+      await window.electron.store.set('birConfig', bir)
       setThermalSource(thermalSelected)
       setThermalPaperType(thermalPaper)
       setNetworkPrinters(netPrinters)
@@ -293,6 +319,68 @@ export default function SettingsPage() {
             }}>
             + Add
           </Button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-foreground font-semibold text-sm border-b border-border pb-1">Business / BIR Receipt</h2>
+        <p className="text-muted-foreground text-[10px] -mt-2">Printed on every POS receipt. Leave a field blank to omit its line.</p>
+
+        <div className="space-y-1">
+          <Label className="text-muted-foreground text-xs">Registered Business Name</Label>
+          <Input value={bir.businessName} onChange={e => setBir(b => ({ ...b, businessName: e.target.value }))} className="text-foreground" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-muted-foreground text-xs">Address</Label>
+          <Input value={bir.address} onChange={e => setBir(b => ({ ...b, address: e.target.value }))} className="text-foreground" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">TIN</Label>
+            <Input value={bir.tin} onChange={e => setBir(b => ({ ...b, tin: e.target.value }))} placeholder="000-000-000-00000" className="text-foreground" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">Invoice Title</Label>
+            <Input value={bir.invoiceTitle} onChange={e => setBir(b => ({ ...b, invoiceTitle: e.target.value }))} className="text-foreground" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex items-center gap-2 text-foreground text-sm pt-5">
+            <input type="checkbox" checked={bir.vatRegistered} onChange={e => setBir(b => ({ ...b, vatRegistered: e.target.checked }))} className="w-4 h-4 accent-primary" />
+            VAT Registered
+          </label>
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">VAT Rate (%)</Label>
+            <Input type="number" value={bir.vatRate} onChange={e => setBir(b => ({ ...b, vatRate: parseFloat(e.target.value) || 0 }))} className="text-foreground" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">PTU No.</Label>
+            <Input value={bir.ptuNo} onChange={e => setBir(b => ({ ...b, ptuNo: e.target.value }))} className="text-foreground" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">MIN</Label>
+            <Input value={bir.min} onChange={e => setBir(b => ({ ...b, min: e.target.value }))} className="text-foreground" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">Serial No.</Label>
+            <Input value={bir.serialNo} onChange={e => setBir(b => ({ ...b, serialNo: e.target.value }))} className="text-foreground" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">Accreditation No.</Label>
+            <Input value={bir.accreditation} onChange={e => setBir(b => ({ ...b, accreditation: e.target.value }))} className="text-foreground" />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <Label className="text-muted-foreground text-xs">Software Provider</Label>
+          <Input value={bir.softwareProvider} onChange={e => setBir(b => ({ ...b, softwareProvider: e.target.value }))} className="text-foreground" />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-muted-foreground text-xs">Footer Note</Label>
+          <Input value={bir.footerNote} onChange={e => setBir(b => ({ ...b, footerNote: e.target.value }))} className="text-foreground" />
         </div>
       </div>
 
