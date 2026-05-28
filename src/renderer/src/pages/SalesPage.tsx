@@ -30,7 +30,7 @@ export default function SalesPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [cart])
+  }, [cart, showCheckout, showHold])
 
   const addToCart = useCallback((product: CachedProduct) => {
     if (product.stock === 0) return
