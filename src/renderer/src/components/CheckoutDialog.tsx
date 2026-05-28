@@ -89,6 +89,14 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
     })
   }
 
+  // Enter in the cash field confirms the sale (fast path for exact / over-tender cash).
+  function onCashKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter' && canPay && !submitting) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
+
   async function handleSubmit() {
     setError('')
     setSubmitting(true)
@@ -329,8 +337,10 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
                         type="number"
                         step="0.01"
                         placeholder="Cash received"
+                        autoFocus={idx === 0}
                         value={payment.cashTendered ?? ''}
                         onChange={e => updatePayment(payment.id, { cashTendered: parseFloat(e.target.value) || undefined })}
+                        onKeyDown={onCashKeyDown}
                         className="h-9 text-sm pl-6"
                       />
                     </div>
