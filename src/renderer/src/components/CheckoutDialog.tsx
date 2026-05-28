@@ -3,7 +3,7 @@ import { nanoid } from 'nanoid'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { X, Plus } from 'lucide-react'
+import { X, Plus, Check } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { printThermal } from '@/lib/escp'
 import { cn } from '@/lib/utils'
@@ -45,7 +45,7 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
   const [payments, setPayments] = useState<PaymentEntry[]>([newPayment('cash', total)])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
-  const [change, setChange] = useState<number | null>(null)
+  const [success, setSuccess] = useState<{ change: number; invoiceNumber: string } | null>(null)
 
   const paid    = paymentTotal(payments)
   const rem     = remaining(total, payments)
@@ -130,20 +130,17 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
         // receipt print failure is non-fatal
       }
 
-      // Show change — aggregate all cash rows, subtract non-cash from total
+      // Compute change — aggregate all cash rows, subtract non-cash from total
       const cashPaid = payments
         .filter(p => p.method === 'cash')
         .reduce((sum, p) => sum + (p.cashTendered ?? p.amount), 0)
       const nonCashPaid = payments
         .filter(p => p.method !== 'cash')
         .reduce((sum, p) => sum + p.amount, 0)
-      const cashChange = Math.round((cashPaid - (total - nonCashPaid)) * 100) / 100
-      if (cashChange > 0.005) {
-        setChange(cashChange)
-        return
-      }
+      const cashChange = Math.max(0, Math.round((cashPaid - (total - nonCashPaid)) * 100) / 100)
 
-      onSuccess()
+      const invoiceNumber = data.invoiceNumber ?? data.invoice?.invoiceNumber ?? ''
+      setSuccess({ change: cashChange, invoiceNumber })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Checkout failed')
     } finally {
@@ -151,13 +148,26 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
     }
   }
 
-  if (change !== null) {
+  if (success !== null) {
     return (
       <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
-        <div className="bg-card border border-border rounded-xl p-8 w-72 text-center space-y-4">
-          <p className="text-muted-foreground text-sm">Change</p>
-          <p className="text-green-500 text-5xl font-extrabold">₱{fmt(change)}</p>
-          <Button className="w-full" onClick={onSuccess}>Done</Button>
+        <div className="bg-card border border-border rounded-xl p-8 w-80 text-center space-y-4">
+          <div className="mx-auto w-12 h-12 rounded-full bg-green-500/15 flex items-center justify-center">
+            <Check className="w-6 h-6 text-green-500" />
+          </div>
+          <div>
+            <p className="text-foreground font-semibold">Payment Complete</p>
+            {success.invoiceNumber && (
+              <p className="text-muted-foreground text-xs mt-0.5">{success.invoiceNumber}</p>
+            )}
+          </div>
+          {success.change > 0.005 && (
+            <div className="bg-background rounded-lg py-3">
+              <p className="text-muted-foreground text-xs">Change</p>
+              <p className="text-green-500 text-4xl font-extrabold">₱{fmt(success.change)}</p>
+            </div>
+          )}
+          <Button className="w-full" onClick={onSuccess}>New Sale</Button>
         </div>
       </div>
     )
