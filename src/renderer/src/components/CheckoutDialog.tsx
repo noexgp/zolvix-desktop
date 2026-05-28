@@ -11,6 +11,8 @@ import { cn } from '@/lib/utils'
 import { paymentTotal, remaining } from '@/lib/cart'
 import type { CartItem, PaymentEntry } from '@/lib/cart'
 import type { CachedCustomer } from '@/lib/db'
+import type { SaleCalc, HolderType } from '@/lib/discount'
+import { HOLDER_LABELS } from '@/lib/discount'
 
 type PaymentMethod = 'cash' | 'card' | 'ewallet' | 'check' | 'charge' | 'gc'
 
@@ -35,6 +37,8 @@ interface Props {
   cart: CartItem[]
   customer: CachedCustomer | null
   total: number
+  sale: SaleCalc
+  holder: { holderType: HolderType; holderName: string; holderId: string } | null
   onClose: () => void
   onSuccess: () => void
 }
@@ -43,7 +47,7 @@ function newPayment(method: PaymentMethod, amount: number): PaymentEntry {
   return { id: nanoid(), method, amount }
 }
 
-export default function CheckoutDialog({ cart, customer, total, onClose, onSuccess }: Props) {
+export default function CheckoutDialog({ cart, customer, total, sale, holder, onClose, onSuccess }: Props) {
   const [payments, setPayments] = useState<PaymentEntry[]>([newPayment('cash', total)])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -132,7 +136,7 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
           deliveryFee: 0,
           withholdingTax: 0,
           ewtMode: 'DEDUCT',
-          holders: [],
+          holders: holder ? [{ holderType: holder.holderType, holderName: holder.holderName, holderId: holder.holderId, sequence: 1 }] : [],
           partySize: 1,
         }),
       })
@@ -165,6 +169,9 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
           payments: receiptPayments,
           cashTendered: cashReceived > 0 ? cashReceived : undefined,
           change: changeDue > 0 ? changeDue : undefined,
+          vat: sale.vat,
+          discount: holder ? { label: `${HOLDER_LABELS[holder.holderType]} Disc`, amount: sale.discount + sale.vatExemptReduction } : undefined,
+          holder: holder ? { type: HOLDER_LABELS[holder.holderType], name: holder.holderName, id: holder.holderId } : undefined,
           details: cart.map(item => ({
             quantity: item.quantity,
             unitPrice: item.product.price,
