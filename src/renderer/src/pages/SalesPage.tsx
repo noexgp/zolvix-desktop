@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '@/lib/db'
 import type { CachedProduct, CachedCustomer } from '@/lib/db'
 import { cartTotal } from '@/lib/cart'
 import type { CartItem } from '@/lib/cart'
+import { apiFetch } from '@/lib/api'
 import ProductGrid from '@/components/ProductGrid'
 import CartSidebar from '@/components/CartSidebar'
 import CheckoutDialog from '@/components/CheckoutDialog'
@@ -10,27 +11,45 @@ import CheckoutDialog from '@/components/CheckoutDialog'
 export default function SalesPage() {
   const [products, setProducts] = useState<CachedProduct[]>([])
   const [customers, setCustomers] = useState<CachedCustomer[]>([])
+  const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
   const [cart, setCart] = useState<CartItem[]>([])
   const [customer, setCustomer] = useState<CachedCustomer | null>(null)
   const [showCheckout, setShowCheckout] = useState(false)
   const [showHold, setShowHold] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
+
+  const focusSearch = useCallback(() => {
+    const el = searchRef.current
+    if (!el) return
+    el.focus()
+    el.select()
+  }, [])
 
   useEffect(() => {
     db.products.toArray().then(setProducts)
     db.customers.filter(c => c.isActive).toArray().then(setCustomers)
+    // Live category names (id -> name); falls back to cached categoryName/id if offline
+    apiFetch('/api/category?limit=500')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return
+        const list: Array<{ id: string; name: string }> = Array.isArray(d) ? d : (d.data ?? [])
+        setCategoryNames(Object.fromEntries(list.map(c => [c.id, c.name])))
+      })
+      .catch(() => { /* offline — fall back to cached categoryName */ })
   }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'F1') { e.preventDefault(); setCustomer(null) }
+      if (e.key === 'F1') { e.preventDefault(); focusSearch() }
       if (e.key === 'F2') { e.preventDefault(); if (cart.length > 0) setShowHold(true) }
       if (e.key === 'F3') { e.preventDefault(); if (cart.length > 0) setShowCheckout(true) }
       if (e.key === 'Escape') { setShowCheckout(false); setShowHold(false) }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [cart, showCheckout, showHold])
+  }, [cart, showCheckout, showHold, focusSearch])
 
   const addToCart = useCallback((product: CachedProduct) => {
     if (product.stock === 0) return
@@ -65,6 +84,8 @@ export default function SalesPage() {
           customers={customers}
           customer={customer}
           cart={cart}
+          categoryNames={categoryNames}
+          searchRef={searchRef}
           onAddToCart={addToCart}
           onSelectCustomer={setCustomer}
         />
@@ -88,7 +109,7 @@ export default function SalesPage() {
           customer={customer}
           total={total}
           onClose={() => setShowCheckout(false)}
-          onSuccess={() => { clearCart(); setShowCheckout(false) }}
+          onSuccess={() => { clearCart(); setShowCheckout(false); setTimeout(focusSearch, 0) }}
         />
       )}
 
