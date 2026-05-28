@@ -49,14 +49,18 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
 
   const paid    = paymentTotal(payments)
   const rem     = remaining(total, payments)
-  const canPay  = rem === 0 && payments.every(p => p.method !== null)
+  const canPay  = rem < 0.005 && payments.every(p => p.method !== null)
 
   function updatePayment(id: string, patch: Partial<PaymentEntry>) {
     setPayments(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p))
   }
 
   function addPayment() {
-    setPayments(prev => [...prev, newPayment('cash', rem)])
+    setPayments(prev => {
+      const currentPaid = prev.reduce((s, p) => s + (p.amount || 0), 0)
+      const r = Math.round(Math.max(0, total - currentPaid) * 100) / 100
+      return [...prev, newPayment('cash', r)]
+    })
   }
 
   function removePayment(id: string) {
@@ -126,10 +130,16 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
         // receipt print failure is non-fatal
       }
 
-      // Show change if cash payment with tendered > total
-      const cashPayment = payments.find(p => p.method === 'cash')
-      if (cashPayment && (cashPayment.cashTendered ?? cashPayment.amount) > total) {
-        setChange((cashPayment.cashTendered ?? cashPayment.amount) - total)
+      // Show change — aggregate all cash rows, subtract non-cash from total
+      const cashPaid = payments
+        .filter(p => p.method === 'cash')
+        .reduce((sum, p) => sum + (p.cashTendered ?? p.amount), 0)
+      const nonCashPaid = payments
+        .filter(p => p.method !== 'cash')
+        .reduce((sum, p) => sum + p.amount, 0)
+      const cashChange = Math.round((cashPaid - (total - nonCashPaid)) * 100) / 100
+      if (cashChange > 0.005) {
+        setChange(cashChange)
         return
       }
 
