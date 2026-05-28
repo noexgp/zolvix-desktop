@@ -51,6 +51,17 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
   const rem     = remaining(total, payments)
   const canPay  = rem < 0.005 && payments.every(p => p.method !== null)
 
+  // Change is computed from the true amount due, never per-row `amount`, so the
+  // inline preview and the success screen can never disagree.
+  const nonCashApplied = payments
+    .filter(p => p.method && p.method !== 'cash')
+    .reduce((s, p) => s + (p.amount || 0), 0)
+  const cashDue      = Math.max(0, Math.round((total - nonCashApplied) * 100) / 100)
+  const cashReceived = payments
+    .filter(p => p.method === 'cash')
+    .reduce((s, p) => s + (p.cashTendered ?? p.amount ?? 0), 0)
+  const changeDue    = Math.max(0, Math.round((cashReceived - cashDue) * 100) / 100)
+
   function updatePayment(id: string, patch: Partial<PaymentEntry>) {
     setPayments(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p))
   }
@@ -130,17 +141,8 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
         // receipt print failure is non-fatal
       }
 
-      // Compute change — aggregate all cash rows, subtract non-cash from total
-      const cashPaid = payments
-        .filter(p => p.method === 'cash')
-        .reduce((sum, p) => sum + (p.cashTendered ?? p.amount), 0)
-      const nonCashPaid = payments
-        .filter(p => p.method !== 'cash')
-        .reduce((sum, p) => sum + p.amount, 0)
-      const cashChange = Math.max(0, Math.round((cashPaid - (total - nonCashPaid)) * 100) / 100)
-
       const invoiceNumber = data.invoiceNumber ?? data.invoice?.invoiceNumber ?? ''
-      setSuccess({ change: cashChange, invoiceNumber })
+      setSuccess({ change: changeDue, invoiceNumber })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Checkout failed')
     } finally {
@@ -240,8 +242,8 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
                     onChange={e => updatePayment(payment.id, { cashTendered: parseFloat(e.target.value) || undefined })}
                     className="h-8 text-sm"
                   />
-                  {(payment.cashTendered ?? payment.amount) > payment.amount && (
-                    <p className="text-green-500 text-xs">Change: ₱{fmt((payment.cashTendered ?? payment.amount) - payment.amount)}</p>
+                  {changeDue > 0.005 && (
+                    <p className="text-green-500 text-xs">Change: ₱{fmt(changeDue)}</p>
                   )}
                 </div>
               )}
