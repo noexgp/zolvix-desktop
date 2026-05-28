@@ -37,6 +37,7 @@ export interface CachedProduct {
   price: number
   stock: number
   categoryId: string
+  categoryName?: string
   isActive: boolean
   updatedAt: string
   vatType?: string

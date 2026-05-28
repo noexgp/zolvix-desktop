@@ -19,8 +19,11 @@ export default function ProductGrid({ products, customers, customer, cart, onAdd
   const [categoryId, setCategoryId] = useState<string | null>(null)
 
   const categories = useMemo(() => {
-    const ids = [...new Set(products.map(p => p.categoryId).filter(Boolean))]
-    return ids
+    const map = new Map<string, string>()
+    for (const p of products) {
+      if (p.categoryId) map.set(p.categoryId, p.categoryName || p.categoryId)
+    }
+    return [...map.entries()].map(([id, name]) => ({ id, name }))
   }, [products])
 
   const cartIds = useMemo(() => new Set(cart.map(i => i.product.id)), [cart])
@@ -75,18 +78,18 @@ export default function ProductGrid({ products, customers, customer, cart, onAdd
         >
           All
         </button>
-        {categories.map(id => (
+        {categories.map(cat => (
           <button
-            key={id}
-            onClick={() => setCategoryId(id === categoryId ? null : id)}
+            key={cat.id}
+            onClick={() => setCategoryId(cat.id === categoryId ? null : cat.id)}
             className={cn(
               'px-3 py-1 rounded text-xs whitespace-nowrap transition-colors',
-              categoryId === id
+              categoryId === cat.id
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-background border border-border text-muted-foreground hover:text-foreground'
             )}
           >
-            {id}
+            {cat.name}
           </button>
         ))}
       </div>

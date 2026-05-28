@@ -7,7 +7,8 @@ import EmptyState from '@/components/EmptyState'
 
 interface ApiProduct {
   id: string; name: string; sku?: string; barcode?: string; unit?: string
-  price: number | string; stock?: number; categoryId?: string; isActive: boolean; updatedAt: string
+  price: number | string; stock?: number; categoryId?: string; categoryName?: string
+  category?: { name?: string }; isActive: boolean; updatedAt: string
 }
 
 const PAGE_SIZE = 20
@@ -36,6 +37,7 @@ export default function ProductsPage() {
         await db.products.bulkPut(items.map(p => ({
           id: p.id, name: p.name, sku: p.sku ?? '', barcode: p.barcode ?? '', unit: p.unit ?? '',
           price: Number(p.price), stock: p.stock ?? 0, categoryId: p.categoryId ?? '',
+          categoryName: p.categoryName ?? p.category?.name ?? '',
           isActive: p.isActive, updatedAt: p.updatedAt,
         })))
         await setCacheMeta('products')
