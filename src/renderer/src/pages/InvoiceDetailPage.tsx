@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
-import { ArrowLeft, Printer, FileText } from 'lucide-react'
+import { ArrowLeft, Printer, FileText, Receipt, Wifi } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { printInvoicePdf } from '@/lib/print-pdf'
-import { printLx310 } from '@/lib/escp'
+import { printLx310, printThermal } from '@/lib/escp'
+import { useAppStore } from '@/stores/appStore'
 
 interface InvoiceDetail {
   id: string
@@ -27,6 +28,7 @@ interface Invoice {
 
 export default function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>()
+  const { networkPrinters } = useAppStore()
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -95,6 +97,16 @@ export default function InvoiceDetailPage() {
           <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printInvoicePdf(invoice).catch(e => setPrintError(e instanceof Error ? e.message : 'Print failed'))}>
             <FileText className="w-3.5 h-3.5" /> PDF
           </Button>
+          <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={() => printThermal(invoice).catch(e => setPrintError(e instanceof Error ? e.message : 'Print failed'))}>
+            <Receipt className="w-3.5 h-3.5" /> POS Receipt
+          </Button>
+          {networkPrinters.map(p => (
+            <Button key={p.id} size="sm" variant="outline" className="gap-1.5 text-xs"
+              onClick={() => window.electron.print.network({ data: invoice, ip: p.ip, port: p.port, paperType: p.paperType })
+                .catch(e => setPrintError(e instanceof Error ? e.message : `${p.label} print failed`))}>
+              <Wifi className="w-3.5 h-3.5" /> {p.label}
+            </Button>
+          ))}
         </div>
       </div>
     </div>

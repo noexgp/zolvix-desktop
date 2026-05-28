@@ -15,6 +15,11 @@ contextBridge.exposeInMainWorld('electron', {
   print: {
     lx310: (payload: { data: unknown; mode: 'preprinted' | 'plain'; printerName: string; offsets: { row: number; col: number }; paper: { width: number; height: number } }) =>
       ipcRenderer.invoke('print:lx310', payload),
+    thermal: (payload: { data: unknown; source: string; paperType: string }) =>
+      ipcRenderer.invoke('print:thermal', payload),
+    detectUsb: () => ipcRenderer.invoke('print:detectUsb'),
+    network: (payload: { data: unknown; ip: string; port: number; paperType: string }) =>
+      ipcRenderer.invoke('print:network', payload),
     getPrinters: () => ipcRenderer.invoke('print:getPrinters'),
   },
 })

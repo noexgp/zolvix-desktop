@@ -2,11 +2,19 @@ import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAppStore } from '@/stores/appStore'
+import { useAppStore, type NetworkPrinter } from '@/stores/appStore'
 import { apiFetch } from '@/lib/api'
 
+const PAPER_TYPES = [
+  { value: '80mm', label: '80mm Thermal' },
+  { value: '58mm', label: '58mm Thermal' },
+  { value: '76mm', label: '76mm Dot Matrix' },
+]
+
+interface UsbDevice { vid: number; pid: number; name: string; paper: string }
+
 export default function SettingsPage() {
-  const { serverUrl, setServerUrl, terminalId, terminalConfig, setTerminalConfig } = useAppStore()
+  const { serverUrl, setServerUrl, terminalId, terminalConfig, setTerminalConfig, thermalSource, thermalPaperType, setThermalSource, setThermalPaperType, networkPrinters, setNetworkPrinters } = useAppStore()
   const [url, setUrl] = useState(serverUrl)
   const [printerName, setPrinterName] = useState('')
   const [printers, setPrinters] = useState<string[]>([])
@@ -14,6 +22,11 @@ export default function SettingsPage() {
   const [colOffset, setColOffset] = useState(5)
   const [paperWidth, setPaperWidth] = useState(8.5)
   const [paperHeight, setPaperHeight] = useState(11)
+  const [thermalSelected, setThermalSelected] = useState(thermalSource)
+  const [thermalPaper, setThermalPaper] = useState(thermalPaperType || '80mm')
+  const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([])
+  const [netPrinters, setNetPrinters] = useState<NetworkPrinter[]>(networkPrinters)
+  const [newNet, setNewNet] = useState({ label: '', ip: '', port: '9100', paperType: '80mm' })
   const [saved, setSaved] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [loadError, setLoadError] = useState('')
@@ -35,6 +48,9 @@ export default function SettingsPage() {
       setPaperWidth(terminalConfig.paperWidth)
       setPaperHeight(terminalConfig.paperHeight)
     }
+    setThermalSelected(thermalSource)
+    setThermalPaper(thermalPaperType || '80mm')
+    window.electron.print.detectUsb().then(setUsbDevices).catch(() => {})
   }, [terminalConfig])
 
   async function handleSave() {
@@ -43,6 +59,13 @@ export default function SettingsPage() {
       const trimmed = url.trim().replace(/\/$/, '')
       await window.electron.store.set('serverUrl', trimmed)
       setServerUrl(trimmed)
+
+      await window.electron.store.set('thermalSource', thermalSelected)
+      await window.electron.store.set('thermalPaperType', thermalPaper)
+      await window.electron.store.set('networkPrinters', netPrinters)
+      setThermalSource(thermalSelected)
+      setThermalPaperType(thermalPaper)
+      setNetworkPrinters(netPrinters)
 
       if (terminalId) {
         const res = await apiFetch(`/api/terminals/${terminalId}`, {
@@ -150,6 +173,128 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      <div className="space-y-4">
+        <h2 className="text-foreground font-semibold text-sm border-b border-border pb-1">POS / Receipt Printer</h2>
+
+        <div className="space-y-1">
+          <Label htmlFor="thermal-source" className="text-muted-foreground text-xs">Printer</Label>
+          <select
+            id="thermal-source"
+            value={thermalSelected}
+            onChange={e => {
+              setThermalSelected(e.target.value)
+              // Auto-fill paper type from USB device if detected
+              const val = e.target.value
+              if (val.startsWith('usb:')) {
+                const [, vidStr, pidStr] = val.split(':')
+                const match = usbDevices.find(d =>
+                  `0x${d.vid.toString(16)}` === vidStr && `0x${d.pid.toString(16)}` === pidStr
+                )
+                if (match) setThermalPaper(match.paper)
+              }
+            }}
+            className="w-full bg-card border border-border text-foreground text-sm rounded p-2"
+          >
+            <option value="">Select printer...</option>
+            {usbDevices.length > 0 && (
+              <optgroup label="USB Direct (no driver)">
+                {usbDevices.map(d => {
+                  const val = `usb:0x${d.vid.toString(16)}:0x${d.pid.toString(16)}`
+                  return <option key={val} value={val}>{d.name} — USB Direct</option>
+                })}
+              </optgroup>
+            )}
+            {printers.length > 0 && (
+              <optgroup label="Windows Driver">
+                {printers.map(p => <option key={p} value={`driver:${p}`}>{p}</option>)}
+              </optgroup>
+            )}
+          </select>
+          {usbDevices.length === 0 && (
+            <p className="text-muted-foreground text-[10px]">No USB printers detected — plug in printer then reopen Settings.</p>
+          )}
+        </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="thermal-paper" className="text-muted-foreground text-xs">Paper Type</Label>
+          <select
+            id="thermal-paper"
+            value={thermalPaper}
+            onChange={e => setThermalPaper(e.target.value)}
+            className="w-full bg-card border border-border text-foreground text-sm rounded p-2"
+          >
+            {PAPER_TYPES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <h2 className="text-foreground font-semibold text-sm border-b border-border pb-1">Network Printers</h2>
+
+        {netPrinters.length > 0 && (
+          <div className="space-y-2">
+            {netPrinters.map(p => (
+              <div key={p.id} className="flex items-center gap-2 bg-card border border-border rounded p-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-foreground text-xs font-medium">{p.label}</div>
+                  <div className="text-muted-foreground text-[10px]">{p.ip}:{p.port} · {p.paperType}</div>
+                </div>
+                <button
+                  onClick={() => setNetPrinters(prev => prev.filter(x => x.id !== p.id))}
+                  className="text-destructive text-xs px-2 py-1 hover:bg-destructive/10 rounded"
+                >Remove</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="space-y-2 border border-border rounded p-3">
+          <div className="text-muted-foreground text-[10px] font-medium uppercase tracking-wide">Add Printer</div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-[10px]">Label</Label>
+              <Input placeholder="e.g. Kitchen" value={newNet.label}
+                onChange={e => setNewNet(p => ({ ...p, label: e.target.value }))}
+                className="text-foreground text-xs h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-[10px]">IP Address</Label>
+              <Input placeholder="192.168.1.101" value={newNet.ip}
+                onChange={e => setNewNet(p => ({ ...p, ip: e.target.value }))}
+                className="text-foreground text-xs h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-[10px]">Port</Label>
+              <Input type="number" value={newNet.port}
+                onChange={e => setNewNet(p => ({ ...p, port: e.target.value }))}
+                className="text-foreground text-xs h-8" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-muted-foreground text-[10px]">Paper Type</Label>
+              <select value={newNet.paperType}
+                onChange={e => setNewNet(p => ({ ...p, paperType: e.target.value }))}
+                className="w-full bg-card border border-border text-foreground text-xs rounded p-1.5 h-8">
+                {PAPER_TYPES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+              </select>
+            </div>
+          </div>
+          <Button size="sm" variant="outline" className="w-full text-xs mt-1"
+            disabled={!newNet.label.trim() || !newNet.ip.trim()}
+            onClick={() => {
+              setNetPrinters(prev => [...prev, {
+                id: Date.now().toString(),
+                label: newNet.label.trim(),
+                ip: newNet.ip.trim(),
+                port: parseInt(newNet.port) || 9100,
+                paperType: newNet.paperType,
+              }])
+              setNewNet({ label: '', ip: '', port: '9100', paperType: '80mm' })
+            }}>
+            + Add
+          </Button>
+        </div>
+      </div>
 
       {saveError && <div className="bg-destructive/20 text-destructive text-xs p-2 rounded">{saveError}</div>}
 

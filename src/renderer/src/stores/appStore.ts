@@ -1,6 +1,14 @@
 import { create } from 'zustand'
 import type { CurrentUser } from '@/lib/auth'
 
+export interface NetworkPrinter {
+  id: string
+  label: string
+  ip: string
+  port: number
+  paperType: string
+}
+
 export interface BusinessSettings {
   bypassApproval: boolean
   name: string
@@ -24,6 +32,9 @@ interface AppStore {
   businessSettings: BusinessSettings | null
   terminalConfig: TerminalConfig | null
   theme: 'light' | 'dark'
+  thermalSource: string  // "driver:PrinterName" | "usb:0x04b8:0x0202" | ""
+  thermalPaperType: string
+  networkPrinters: NetworkPrinter[]
   setServerUrl: (url: string) => void
   setSetupComplete: (v: boolean) => void
   setTerminalId: (id: string) => void
@@ -31,6 +42,9 @@ interface AppStore {
   setBusinessSettings: (s: BusinessSettings) => void
   setTerminalConfig: (c: TerminalConfig | null) => void
   setTheme: (t: 'light' | 'dark') => void
+  setThermalSource: (s: string) => void
+  setThermalPaperType: (t: string) => void
+  setNetworkPrinters: (p: NetworkPrinter[]) => void
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -41,6 +55,9 @@ export const useAppStore = create<AppStore>((set) => ({
   businessSettings: null,
   terminalConfig: null,
   theme: 'dark',
+  thermalSource: '',
+  thermalPaperType: '80mm',
+  networkPrinters: [],
   setServerUrl: (serverUrl) => set({ serverUrl }),
   setSetupComplete: (setupComplete) => set({ setupComplete }),
   setTerminalId: (terminalId) => set({ terminalId }),
@@ -48,4 +65,7 @@ export const useAppStore = create<AppStore>((set) => ({
   setBusinessSettings: (businessSettings) => set({ businessSettings }),
   setTerminalConfig: (terminalConfig) => set({ terminalConfig }),
   setTheme: (theme) => set({ theme }),
+  setThermalSource: (thermalSource) => set({ thermalSource }),
+  setThermalPaperType: (thermalPaperType) => set({ thermalPaperType }),
+  setNetworkPrinters: (networkPrinters) => set({ networkPrinters }),
 }))

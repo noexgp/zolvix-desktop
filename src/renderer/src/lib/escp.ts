@@ -10,3 +10,12 @@ export async function printLx310(invoice: unknown, mode: 'preprinted' | 'plain')
     paper: { width: terminalConfig?.paperWidth ?? 8.5, height: terminalConfig?.paperHeight ?? 11 },
   })
 }
+
+export async function printThermal(invoice: unknown): Promise<void> {
+  const { thermalSource, thermalPaperType } = useAppStore.getState()
+  await window.electron.print.thermal({
+    data: invoice,
+    source: thermalSource,
+    paperType: thermalPaperType || '80mm',
+  })
+}

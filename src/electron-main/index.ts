@@ -1,10 +1,13 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, net } from 'electron'
+import { createConnection } from 'net'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import icon from '../../resources/icon.png?asset'
 import { store } from './store'
 import { buildEscpPlain, buildEscpPreprinted } from './escp-builder'
+import { buildThermalBuffer } from './escp-thermal'
+import { detectUsbThermalPrinters, printViaUsb } from './usb-thermal'
 
 // Accept self-signed certificates — this is a closed internal app where users configure their own server
 app.on('certificate-error', (_event, _webContents, _url, _error, _certificate, callback) => {
@@ -85,7 +88,7 @@ app.whenReady().then(() => {
   })
 
   // Store IPC handlers — key allowlist prevents arbitrary key read/write from renderer
-  const STORE_ALLOWED_KEYS = ['serverUrl', 'setupComplete', 'terminalId', 'theme'] as const
+  const STORE_ALLOWED_KEYS = ['serverUrl', 'setupComplete', 'terminalId', 'theme', 'thermalSource', 'thermalPaperType', 'networkPrinters'] as const
   type StoreKey = typeof STORE_ALLOWED_KEYS[number]
 
   ipcMain.handle('store:get', (_, key: string) => {
@@ -173,6 +176,60 @@ app.whenReady().then(() => {
       : buildEscpPlain(invoiceData, paper)
     return new Promise<void>((resolve, reject) => {
       printerModule!.printDirect({ data: buffer, printer: printerName, type: 'RAW', success: () => resolve(), error: reject })
+    })
+  })
+
+  // source: "driver:PrinterName" | "usb:0x04b8:0x0202"
+  ipcMain.handle('print:thermal', async (_event, { data, source, paperType }: {
+    data: unknown
+    source: string
+    paperType: string
+  }) => {
+    if (!source) throw new Error('POS printer not configured. Go to Settings.')
+    const inv = data as import('./escp-thermal').ThermalInvoiceData
+
+    if (source.startsWith('driver:')) {
+      const printerName = source.slice(7)
+      if (!printerModule) throw new Error('Printer support not available. Use the Windows build.')
+      if (!printerName) throw new Error('POS printer not configured. Go to Settings.')
+      const buffer = await buildThermalBuffer(inv, paperType)
+      return new Promise<void>((resolve, reject) => {
+        printerModule!.printDirect({ data: buffer, printer: printerName, type: 'RAW', success: () => resolve(), error: reject })
+      })
+    }
+
+    if (source.startsWith('usb:')) {
+      const [, vidStr, pidStr] = source.split(':')
+      const vid = parseInt(vidStr, 16)
+      const pid = parseInt(pidStr, 16)
+      const buffer = await buildThermalBuffer(inv, paperType)
+      return printViaUsb(vid, pid, buffer)
+    }
+
+    throw new Error(`Unknown thermal source: ${source}`)
+  })
+
+  ipcMain.handle('print:detectUsb', () => detectUsbThermalPrinters())
+
+  ipcMain.handle('print:network', async (_event, { data, ip, port, paperType }: {
+    data: unknown
+    ip: string
+    port: number
+    paperType: string
+  }) => {
+    const buffer = await buildThermalBuffer(data as import('./escp-thermal').ThermalInvoiceData, paperType)
+    return new Promise<void>((resolve, reject) => {
+      const socket = createConnection({ host: ip, port: port || 9100 }, () => {
+        socket.write(buffer, () => {
+          socket.destroy()
+          resolve()
+        })
+      })
+      socket.setTimeout(5000, () => {
+        socket.destroy()
+        reject(new Error(`Connection to ${ip}:${port} timed out`))
+      })
+      socket.on('error', reject)
     })
   })
 
