@@ -26,7 +26,18 @@ const RIGHT_COL = 10 // fixed amount column width
 
 // "Label .......... 290.87" — label left, amount right-aligned in RIGHT_COL.
 function kv(label: string, right: string, width: number): string {
-  return label.substring(0, width - RIGHT_COL).padEnd(width - RIGHT_COL) + right.padStart(RIGHT_COL)
+  const l = String(label ?? '')
+  const r = String(right ?? '')
+  return l.substring(0, width - RIGHT_COL).padEnd(width - RIGHT_COL) + r.padStart(RIGHT_COL)
+}
+
+const METHOD_LABELS: Record<string, string> = {
+  cash: 'Cash', card: 'Card', ewallet: 'E-wallet', check: 'Check', charge: 'Charge', gc: 'Gift Cert',
+}
+// Payments may arrive pre-formatted ({label}) from checkout, or raw from the API
+// invoice ({method}); derive a display label either way.
+function paymentLabel(p: { label?: string; method?: string }): string {
+  return p.label || (p.method ? METHOD_LABELS[p.method] ?? p.method : '') || 'Payment'
 }
 
 // Two lines per item: name, then "  qty x unitPrice         total"
@@ -53,6 +64,7 @@ export interface ThermalInvoiceData {
   cashTendered?: number
   change?: number
   customer?: { name?: string; address?: string; tin?: string }
+  payments?: Array<{ label?: string; detail?: string; amount: number | string; method?: string }>
   details?: Array<{
     quantity: number
     unitPrice: number | string
@@ -128,6 +140,19 @@ function buildEscPosReceipt(
       <Line character='=' />
       <Text bold>{kv('TOTAL AMOUNT DUE', fmtAmount(total), width)}</Text>
 
+      {/* ── Payment breakdown ── */}
+      {inv.payments && inv.payments.length > 0 && (
+        <>
+          <Line />
+          {inv.payments.map((p, i) => (
+            <React.Fragment key={i}>
+              <Text>{kv(paymentLabel(p), fmtAmount(p.amount), width)}</Text>
+              {p.detail && <Text>{`  ${p.detail}`}</Text>}
+            </React.Fragment>
+          ))}
+        </>
+      )}
+
       {/* ── Tendered / change ── */}
       {inv.cashTendered != null && inv.cashTendered > 0 && (
         <Text>{kv('Cash Tendered', fmtAmount(inv.cashTendered), width)}</Text>
@@ -150,6 +175,7 @@ function buildEscPosReceipt(
         <>
           <Br />
           <Text align='center'>{bir.softwareProvider}</Text>
+          {bir.softwareTin && <Text align='center'>{`TIN: ${bir.softwareTin}`}</Text>}
         </>
       )}
       <Br />
@@ -164,7 +190,7 @@ function buildEscPosReceipt(
 const EMPTY_BIR: BirConfig = {
   businessName: '', address: '', tin: '', vatRegistered: true, vatRate: 12,
   invoiceTitle: 'SALES INVOICE', ptuNo: '', min: '', serialNo: '',
-  accreditation: '', softwareProvider: '', footerNote: '',
+  accreditation: '', softwareProvider: '', softwareTin: '', footerNote: '',
 }
 
 export async function buildThermalBuffer(

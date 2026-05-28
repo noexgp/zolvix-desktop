@@ -20,6 +20,7 @@ export interface BirConfig {
   serialNo: string
   accreditation: string
   softwareProvider: string
+  softwareTin: string
   footerNote: string
 }
 
@@ -35,6 +36,7 @@ export const DEFAULT_BIR: BirConfig = {
   serialNo: '',
   accreditation: '',
   softwareProvider: 'Zolvix POS',
+  softwareTin: '',
   footerNote: 'Thank you, come again!',
 }
 

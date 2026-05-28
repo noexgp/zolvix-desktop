@@ -25,13 +25,14 @@ interface BirConfig {
   serialNo: string
   accreditation: string
   softwareProvider: string
+  softwareTin: string
   footerNote: string
 }
 
 const DEFAULT_BIR: BirConfig = {
   businessName: '', address: '', tin: '', vatRegistered: true, vatRate: 12,
   invoiceTitle: 'SALES INVOICE', ptuNo: '', min: '', serialNo: '',
-  accreditation: '', softwareProvider: 'Zolvix POS', footerNote: 'Thank you, come again!',
+  accreditation: '', softwareProvider: 'Zolvix POS', softwareTin: '', footerNote: 'Thank you, come again!',
 }
 
 export default function SettingsPage() {
@@ -374,9 +375,15 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="space-y-1">
-          <Label className="text-muted-foreground text-xs">Software Provider</Label>
-          <Input value={bir.softwareProvider} onChange={e => setBir(b => ({ ...b, softwareProvider: e.target.value }))} className="text-foreground" />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">Software Provider</Label>
+            <Input value={bir.softwareProvider} onChange={e => setBir(b => ({ ...b, softwareProvider: e.target.value }))} className="text-foreground" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-muted-foreground text-xs">Provider TIN</Label>
+            <Input value={bir.softwareTin} onChange={e => setBir(b => ({ ...b, softwareTin: e.target.value }))} placeholder="000-000-000-00000" className="text-foreground" />
+          </div>
         </div>
         <div className="space-y-1">
           <Label className="text-muted-foreground text-xs">Footer Note</Label>

@@ -144,11 +144,25 @@ export default function CheckoutDialog({ cart, customer, total, onClose, onSucce
 
       // Print receipt
       try {
+        const receiptPayments = payments.map(p => {
+          let label = 'Cash'
+          let detail = ''
+          switch (p.method) {
+            case 'cash':    label = 'Cash'; break
+            case 'card':    label = p.cardProvider || 'Card'; detail = p.approvalCode ? `Appr: ${p.approvalCode}` : ''; break
+            case 'ewallet': label = p.ewalletProvider || 'E-wallet'; detail = p.referenceNo ? `Ref: ${p.referenceNo}` : ''; break
+            case 'check':   label = `Check ${p.checkNumber ?? ''}`.trim(); detail = [p.bankName, p.checkDate].filter(Boolean).join(' '); break
+            case 'charge':  label = 'Charge'; break
+            case 'gc':      label = 'Gift Cert'; detail = p.referenceNo ? `Code: ${p.referenceNo}` : ''; break
+          }
+          return { label, detail: detail || undefined, amount: p.amount }
+        })
         await printThermal({
           invoiceNumber: data.invoiceNumber ?? data.invoice?.invoiceNumber ?? '',
           totalAmount: total,
           createdAt: data.createdAt ?? new Date().toISOString(),
           customer: customer ? { name: customer.name } : undefined,
+          payments: receiptPayments,
           cashTendered: cashReceived > 0 ? cashReceived : undefined,
           change: changeDue > 0 ? changeDue : undefined,
           details: cart.map(item => ({
