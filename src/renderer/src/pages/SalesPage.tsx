@@ -16,6 +16,7 @@ export default function SalesPage() {
   const [customer, setCustomer] = useState<CachedCustomer | null>(null)
   const [showCheckout, setShowCheckout] = useState(false)
   const [showHold, setShowHold] = useState(false)
+  const [biz, setBiz] = useState<{ businessName: string; address: string; tin: string; vatRegistered: boolean } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
   const focusSearch = useCallback(() => {
@@ -37,6 +38,13 @@ export default function SalesPage() {
         setCategoryNames(Object.fromEntries(list.map(c => [c.id, c.name])))
       })
       .catch(() => { /* offline — fall back to cached categoryName */ })
+    // Business info for the customer-facing header
+    window.electron.store.get('birConfig')
+      .then(v => {
+        const b = v as { businessName?: string; address?: string; tin?: string; vatRegistered?: boolean } | undefined
+        if (b?.businessName) setBiz({ businessName: b.businessName, address: b.address ?? '', tin: b.tin ?? '', vatRegistered: b.vatRegistered ?? true })
+      })
+      .catch(() => {})
   }, [])
 
   // Keyboard shortcuts
@@ -77,7 +85,16 @@ export default function SalesPage() {
   const total = cartTotal(cart)
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
+      {biz && (
+        <header className="shrink-0 flex items-center justify-between px-4 py-1.5 bg-card border-b border-border">
+          <span className="text-foreground font-bold text-sm tracking-tight truncate">{biz.businessName}</span>
+          <span className="text-muted-foreground text-[10px] text-right truncate ml-3">
+            {[biz.address, biz.tin && `${biz.vatRegistered ? 'VAT REG TIN' : 'NON-VAT TIN'}: ${biz.tin}`].filter(Boolean).join('  ·  ')}
+          </span>
+        </header>
+      )}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
       <div className="flex-[3] min-w-0 flex flex-col">
         <ProductGrid
           products={products}
@@ -101,6 +118,7 @@ export default function SalesPage() {
           onHold={() => setShowHold(true)}
           onCheckout={() => setShowCheckout(true)}
         />
+      </div>
       </div>
 
       {showCheckout && (
