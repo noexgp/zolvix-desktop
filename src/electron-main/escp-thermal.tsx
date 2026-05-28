@@ -13,6 +13,10 @@ const CUT_RAW = new Uint8Array([
   0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x0a, 0x1d, 0x56, 0x00,
 ])
 
+// ESC M n — select character font. 1 = Font B (smaller), 0 = Font A (normal).
+const FONT_B = new Uint8Array([0x1b, 0x4d, 0x01])
+const FONT_A = new Uint8Array([0x1b, 0x4d, 0x00])
+
 function fmtAmount(v: number | string): string {
   const n = Number(v) || 0
   return n.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -38,6 +42,20 @@ const METHOD_LABELS: Record<string, string> = {
 // invoice ({method}); derive a display label either way.
 function paymentLabel(p: { label?: string; method?: string }): string {
   return p.label || (p.method ? METHOD_LABELS[p.method] ?? p.method : '') || 'Payment'
+}
+
+// Word-wrap a string to the paper width at word boundaries (react-thermal-printer
+// does not wrap plain <Text>, so we do it ourselves to avoid mid-word breaks).
+function wrapWords(text: string, width: number): string[] {
+  const lines: string[] = []
+  let line = ''
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (!line) line = word
+    else if ((line + ' ' + word).length <= width) line += ' ' + word
+    else { lines.push(line); line = word }
+  }
+  if (line) lines.push(line)
+  return lines
 }
 
 // Two lines per item: name, then "  qty x unitPrice         total"
@@ -93,7 +111,7 @@ function buildEscPosReceipt(
     <Printer type='epson' width={width}>
       {/* ── Header ── */}
       {businessName && <Text align='center' bold>{businessName}</Text>}
-      {bir.address && <Text align='center'>{bir.address}</Text>}
+      {bir.address && wrapWords(bir.address, width).map((l, i) => <Text key={`addr-${i}`} align='center'>{l}</Text>)}
       {bir.tin && (
         <Text align='center'>
           {`${bir.vatRegistered ? 'VAT REG' : 'NON-VAT'} TIN: ${bir.tin}`}
@@ -163,9 +181,12 @@ function buildEscPosReceipt(
 
       <Line character='=' />
 
-      {/* ── BIR footer ── */}
-      <Text align='center'>This invoice is valid for five (5)</Text>
-      <Text align='center'>years from the date of the PTU.</Text>
+      {/* ── BIR footer (smaller Font B fine-print) ── */}
+      <Raw data={FONT_B} />
+      <Text align='center' bold>THIS SERVES AS YOUR SALES INVOICE</Text>
+      {wrapWords('This invoice shall be valid for five (5) years from the date of the Permit to Use.', width).map((l, i) => (
+        <Text key={`val-${i}`} align='center'>{l}</Text>
+      ))}
       <Br />
       {bir.ptuNo && <Text align='center'>{`PTU No: ${bir.ptuNo}`}</Text>}
       {bir.min && <Text align='center'>{`MIN: ${bir.min}`}</Text>}
@@ -178,6 +199,7 @@ function buildEscPosReceipt(
           {bir.softwareTin && <Text align='center'>{`TIN: ${bir.softwareTin}`}</Text>}
         </>
       )}
+      <Raw data={FONT_A} />
       <Br />
       <Text align='center'>{bir.footerNote || 'Thank you, come again!'}</Text>
       <Br />
