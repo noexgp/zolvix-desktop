@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '@/lib/db'
 import type { CachedProduct, CachedCustomer } from '@/lib/db'
-import { cartTotal } from '@/lib/cart'
 import type { CartItem } from '@/lib/cart'
+import { computeSale, HOLDER_LABELS } from '@/lib/discount'
+import DiscountDialog, { type Holder } from '@/components/DiscountDialog'
 import { apiFetch } from '@/lib/api'
 import ProductGrid from '@/components/ProductGrid'
 import CartSidebar from '@/components/CartSidebar'
@@ -16,6 +17,8 @@ export default function SalesPage() {
   const [customer, setCustomer] = useState<CachedCustomer | null>(null)
   const [showCheckout, setShowCheckout] = useState(false)
   const [showHold, setShowHold] = useState(false)
+  const [discount, setDiscount] = useState<Holder | null>(null)
+  const [showDiscount, setShowDiscount] = useState(false)
   const [biz, setBiz] = useState<{ businessName: string; address: string; tin: string; vatRegistered: boolean } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -80,9 +83,21 @@ export default function SalesPage() {
   const clearCart = useCallback(() => {
     setCart([])
     setCustomer(null)
+    setDiscount(null)
   }, [])
 
-  const total = cartTotal(cart)
+  const sale = computeSale(
+    cart.map(i => ({
+      lineTotal: Math.round(i.product.price * i.quantity * 100) / 100,
+      vatType: i.product.vatType ?? 'VATABLE',
+      scDiscountExempt: i.product.scDiscountExempt ?? false,
+    })),
+    discount?.holderType ?? null,
+  )
+  const total = sale.amountDue
+  const discountLabel = discount
+    ? `${HOLDER_LABELS[discount.holderType]} · ${discount.holderName} · ${discount.holderId}`
+    : null
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -112,11 +127,15 @@ export default function SalesPage() {
           cart={cart}
           customer={customer}
           total={total}
+          discountLabel={discountLabel}
+          discountAmount={sale.discount + sale.vatExemptReduction}
           onUpdateQty={updateQty}
           onRemoveItem={removeItem}
           onClear={clearCart}
           onHold={() => setShowHold(true)}
           onCheckout={() => setShowCheckout(true)}
+          onOpenDiscount={() => setShowDiscount(true)}
+          onRemoveDiscount={() => setDiscount(null)}
         />
       </div>
       </div>
@@ -126,8 +145,19 @@ export default function SalesPage() {
           cart={cart}
           customer={customer}
           total={total}
+          sale={sale}
+          holder={discount}
           onClose={() => setShowCheckout(false)}
           onSuccess={() => { clearCart(); setShowCheckout(false); setTimeout(focusSearch, 0) }}
+        />
+      )}
+
+      {showDiscount && (
+        <DiscountDialog
+          current={discount}
+          onApply={(h) => { setDiscount(h); setShowDiscount(false) }}
+          onRemove={() => { setDiscount(null); setShowDiscount(false) }}
+          onClose={() => setShowDiscount(false)}
         />
       )}
 
