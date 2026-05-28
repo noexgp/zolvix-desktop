@@ -25,7 +25,8 @@ export function lineTotal(product: CachedProduct, quantity: number): number {
 }
 
 export function cartTotal(items: CartItem[]): number {
-  return items.reduce((sum, item) => sum + lineTotal(item.product, item.quantity), 0)
+  const total = items.reduce((sum, item) => sum + lineTotal(item.product, item.quantity), 0)
+  return Math.round(total * 100) / 100
 }
 
 export function paymentTotal(payments: PaymentEntry[]): number {

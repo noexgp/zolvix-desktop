@@ -23,6 +23,14 @@ describe('cartTotal', () => {
   it('returns 0 for empty cart', () => {
     expect(cartTotal([])).toBe(0)
   })
+  it('rounds accumulated total correctly', () => {
+    const items = [
+      { product: p(0.1), quantity: 3 },   // 0.30
+      { product: p(19.99), quantity: 2 }, // 39.98
+      { product: p(5.55), quantity: 1 },  // 5.55
+    ]
+    expect(cartTotal(items)).toBe(45.83)
+  })
 })
 
 describe('paymentTotal', () => {
