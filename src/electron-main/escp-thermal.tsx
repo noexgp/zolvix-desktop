@@ -83,6 +83,9 @@ export interface ThermalInvoiceData {
   change?: number
   customer?: { name?: string; address?: string; tin?: string }
   payments?: Array<{ label?: string; detail?: string; amount: number | string; method?: string }>
+  vat?: { vatableSales: number; vatAmount: number; vatExemptSales: number; zeroRatedSales: number }
+  discount?: { label: string; amount: number }
+  holder?: { type: string; name: string; id: string }
   details?: Array<{
     quantity: number
     unitPrice: number | string
@@ -104,8 +107,11 @@ function buildEscPosReceipt(
   const businessName = bir.businessName || inv.businessName || ''
   const total = Number(inv.totalAmount) || 0
   const rate = bir.vatRate || 12
-  const vatable = bir.vatRegistered ? round2(total / (1 + rate / 100)) : 0
-  const vat = bir.vatRegistered ? round2(total - vatable) : 0
+  const v = inv.vat
+  const vatableSales = v ? v.vatableSales : (bir.vatRegistered ? round2(total / (1 + rate / 100)) : 0)
+  const vatAmount    = v ? v.vatAmount    : (bir.vatRegistered ? round2(total - vatableSales) : 0)
+  const vatExempt    = v ? v.vatExemptSales : 0
+  const zeroRated    = v ? v.zeroRatedSales : 0
 
   return (
     <Printer type='epson' width={width}>
@@ -146,16 +152,19 @@ function buildEscPosReceipt(
       {/* ── VAT breakdown ── */}
       {bir.vatRegistered ? (
         <>
-          <Text>{kv('VATable Sales', fmtAmount(vatable), width)}</Text>
-          <Text>{kv('VAT-Exempt Sales', fmtAmount(0), width)}</Text>
-          <Text>{kv('Zero-Rated Sales', fmtAmount(0), width)}</Text>
-          <Text>{kv(`VAT (${rate}%)`, fmtAmount(vat), width)}</Text>
+          <Text>{kv('VATable Sales', fmtAmount(vatableSales), width)}</Text>
+          <Text>{kv('VAT-Exempt Sales', fmtAmount(vatExempt), width)}</Text>
+          <Text>{kv('Zero-Rated Sales', fmtAmount(zeroRated), width)}</Text>
+          <Text>{kv(`VAT (${rate}%)`, fmtAmount(vatAmount), width)}</Text>
         </>
       ) : (
         <Text align='center'>NOT VALID FOR CLAIMING INPUT TAX</Text>
       )}
 
       <Line character='=' />
+      {inv.discount && inv.discount.amount > 0 && (
+        <Text>{kv(`Less: ${inv.discount.label}`, '-' + fmtAmount(inv.discount.amount), width)}</Text>
+      )}
       <Text bold>{kv('TOTAL AMOUNT DUE', fmtAmount(total), width)}</Text>
 
       {/* ── Payment breakdown ── */}
@@ -177,6 +186,15 @@ function buildEscPosReceipt(
       )}
       {inv.change != null && inv.change > 0 && (
         <Text>{kv('Change', fmtAmount(inv.change), width)}</Text>
+      )}
+
+      {inv.holder && (
+        <>
+          <Br />
+          <Text>{`${inv.holder.type} Name: ${inv.holder.name}`}</Text>
+          <Text>{`ID No: ${inv.holder.id}`}</Text>
+          <Text>Signature: ____________________</Text>
+        </>
       )}
 
       <Line character='=' />
