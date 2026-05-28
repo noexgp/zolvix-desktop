@@ -88,7 +88,7 @@ export default function SalesPage() {
           customer={customer}
           total={total}
           onClose={() => setShowCheckout(false)}
-          onSuccess={clearCart}
+          onSuccess={() => { clearCart(); setShowCheckout(false) }}
         />
       )}
 
