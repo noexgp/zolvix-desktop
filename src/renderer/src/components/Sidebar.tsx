@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { ClipboardList, FileText, Users, Package, Settings, LogOut, Sun, Moon } from 'lucide-react'
+import { ClipboardList, FileText, Users, Package, Settings, LogOut, Sun, Moon, ShoppingCart } from 'lucide-react'
 import { logout } from '@/lib/auth'
 import { useAppStore } from '@/stores/appStore'
 import { useNavigate } from 'react-router-dom'
@@ -8,6 +8,9 @@ import { cn } from '@/lib/utils'
 import { syncPendingSalesOrders, getPendingCount } from '@/lib/sync'
 
 const nav = [
+  { group: 'POS', items: [
+    { to: '/sales', icon: ShoppingCart, label: 'Sales' },
+  ]},
   { group: 'PIPELINE', items: [
     { to: '/sales-orders', icon: ClipboardList, label: 'Sales Orders' },
     { to: '/invoices',     icon: FileText,      label: 'Invoices' },

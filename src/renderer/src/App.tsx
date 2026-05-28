@@ -3,6 +3,7 @@ import { MemoryRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom'
 import Sidebar from '@/components/Sidebar'
 import SetupPage from '@/pages/SetupPage'
 import LoginPage from '@/pages/LoginPage'
+import SalesPage from '@/pages/SalesPage'
 import SalesOrdersPage from '@/pages/SalesOrdersPage'
 import InvoicesPage from '@/pages/InvoicesPage'
 import CustomersPage from '@/pages/CustomersPage'
@@ -37,7 +38,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { setCurrentUser, setSetupComplete, setServerUrl, setBusinessSettings, setTerminalId, setTerminalConfig, setTheme, theme } = useAppStore()
+  const { setCurrentUser, setSetupComplete, setServerUrl, setBusinessSettings, setTerminalId, setTerminalConfig, setTheme, theme, setThermalSource, setThermalPaperType, setNetworkPrinters } = useAppStore()
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -46,6 +47,12 @@ export default function App() {
       const setupDone = await window.electron.store.get('setupComplete') as boolean
       const storedTerminalId = await window.electron.store.get('terminalId') as string
       const storedTheme = await window.electron.store.get('theme') as 'light' | 'dark' | undefined
+      const storedThermalSource = await window.electron.store.get('thermalSource') as string | undefined
+      const storedThermalPaper = await window.electron.store.get('thermalPaperType') as string | undefined
+      const storedNetworkPrinters = await window.electron.store.get('networkPrinters') as import('@/stores/appStore').NetworkPrinter[] | undefined
+      if (storedThermalSource) setThermalSource(storedThermalSource)
+      if (storedThermalPaper) setThermalPaperType(storedThermalPaper)
+      if (storedNetworkPrinters?.length) setNetworkPrinters(storedNetworkPrinters)
       const resolvedTheme = storedTheme ?? 'dark'
       setTheme(resolvedTheme)
       document.documentElement.classList.toggle('dark', resolvedTheme === 'dark')
@@ -143,6 +150,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/terminal-select" element={<TerminalSelectPage />} />
         <Route element={<AuthGuard><AppLayout /></AuthGuard>}>
+          <Route path="/sales" element={<SalesPage />} />
           <Route path="/sales-orders" element={<SalesOrdersPage />} />
           <Route path="/sales-orders/new" element={<NewSOPage />} />
           <Route path="/sales-orders/:id/edit" element={<EditSOPage />} />
