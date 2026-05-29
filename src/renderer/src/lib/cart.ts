@@ -3,6 +3,7 @@ import type { CachedProduct } from '@/lib/db'
 export interface CartItem {
   product: CachedProduct
   quantity: number
+  discountPct?: number // line discount as a percent, 4 dp; undefined/0 = none
 }
 
 export interface PaymentEntry {
@@ -35,4 +36,25 @@ export function paymentTotal(payments: PaymentEntry[]): number {
 
 export function remaining(total: number, payments: PaymentEntry[]): number {
   return Math.max(0, total - paymentTotal(payments))
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+const round4 = (n: number) => Math.round(n * 10000) / 10000
+
+export function clampPct(p: number): number {
+  return round4(Math.min(100, Math.max(0, p)))
+}
+
+export function pesoToPct(peso: number, lineGross: number): number {
+  if (lineGross <= 0) return 0
+  return clampPct((peso / lineGross) * 100)
+}
+
+export function lineDiscountAmount(item: CartItem): number {
+  const gross = lineTotal(item.product, item.quantity)
+  return round2(gross * (item.discountPct ?? 0) / 100)
+}
+
+export function lineNet(item: CartItem): number {
+  return round2(lineTotal(item.product, item.quantity) - lineDiscountAmount(item))
 }

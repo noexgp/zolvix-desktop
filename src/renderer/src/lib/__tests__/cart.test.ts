@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest'
-import { lineTotal, cartTotal, paymentTotal, remaining } from '../cart'
+import { lineTotal, cartTotal, paymentTotal, remaining, pesoToPct, clampPct, lineNet, lineDiscountAmount } from '../cart'
+import type { CartItem } from '../cart'
 
 const p = (price: number) => ({ id: '1', name: 'Item', price, stock: 10, sku: '', categoryId: '', isActive: true, updatedAt: '' })
+const item = (price: number, quantity: number, discountPct?: number): CartItem => ({ product: p(price), quantity, discountPct })
 
 describe('lineTotal', () => {
   it('multiplies price by quantity', () => {
@@ -48,5 +50,43 @@ describe('remaining', () => {
   })
   it('never returns negative', () => {
     expect(remaining(100, [{ id: '1', method: 'cash', amount: 200 }])).toBe(0)
+  })
+})
+
+describe('clampPct', () => {
+  it('clamps to 0..100 and rounds to 4 dp', () => {
+    expect(clampPct(150)).toBe(100)
+    expect(clampPct(-5)).toBe(0)
+    expect(clampPct(33.333333)).toBe(33.3333)
+  })
+})
+
+describe('pesoToPct', () => {
+  it('converts peso to a 4-dp percent of the line gross', () => {
+    expect(pesoToPct(50, 150)).toBe(33.3333)
+    expect(pesoToPct(50, 200)).toBe(25)
+  })
+  it('caps at 100% when peso >= gross', () => {
+    expect(pesoToPct(300, 150)).toBe(100)
+  })
+  it('is 0 when gross is 0', () => {
+    expect(pesoToPct(50, 0)).toBe(0)
+  })
+})
+
+describe('lineNet / lineDiscountAmount', () => {
+  it('no discount → gross', () => {
+    expect(lineNet(item(150, 1))).toBe(150)
+    expect(lineDiscountAmount(item(150, 1))).toBe(0)
+  })
+  it('33.3333% off ₱150 → ₱100.00 net, ₱50.00 off', () => {
+    const it = item(150, 1, 33.3333)
+    expect(lineDiscountAmount(it)).toBe(50)
+    expect(lineNet(it)).toBe(100)
+  })
+  it('applies to qty', () => {
+    const it = item(100, 2, 10)
+    expect(lineDiscountAmount(it)).toBe(20)
+    expect(lineNet(it)).toBe(180)
   })
 })
