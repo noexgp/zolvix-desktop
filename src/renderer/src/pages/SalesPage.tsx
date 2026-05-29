@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '@/lib/db'
 import type { CachedProduct, CachedCustomer } from '@/lib/db'
 import type { CartItem } from '@/lib/cart'
-import { computeSale, HOLDER_LABELS } from '@/lib/discount'
-import DiscountDialog, { type Holder } from '@/components/DiscountDialog'
+import { computeSale } from '@/lib/discount'
+import DiscountDialog from '@/components/DiscountDialog'
+import type { PrivilegedDiscount } from '@/lib/discount'
 import { apiFetch } from '@/lib/api'
 import ProductGrid from '@/components/ProductGrid'
 import CartSidebar from '@/components/CartSidebar'
@@ -17,7 +18,7 @@ export default function SalesPage() {
   const [customer, setCustomer] = useState<CachedCustomer | null>(null)
   const [showCheckout, setShowCheckout] = useState(false)
   const [showHold, setShowHold] = useState(false)
-  const [discount, setDiscount] = useState<Holder | null>(null)
+  const [discount, setDiscount] = useState<PrivilegedDiscount | null>(null)
   const [showDiscount, setShowDiscount] = useState(false)
   const [biz, setBiz] = useState<{ businessName: string; address: string; tin: string; vatRegistered: boolean } | null>(null)
   const searchRef = useRef<HTMLInputElement>(null)
@@ -92,12 +93,12 @@ export default function SalesPage() {
       vatType: i.product.vatType ?? 'VATABLE',
       scDiscountExempt: i.product.scDiscountExempt ?? false,
     })),
-    discount ? [{ holderType: discount.holderType }] : [],
-    1,
+    discount?.holders ?? [],
+    discount?.partySize ?? 1,
   )
   const total = sale.amountDue
   const discountLabel = discount
-    ? `${HOLDER_LABELS[discount.holderType]} · ${discount.holderName} · ${discount.holderId}`
+    ? `${discount.holders.length} holder(s) · party of ${discount.partySize}`
     : null
 
   return (
@@ -147,7 +148,7 @@ export default function SalesPage() {
           customer={customer}
           total={total}
           sale={sale}
-          holder={discount}
+          discount={discount}
           onClose={() => setShowCheckout(false)}
           onSuccess={() => { clearCart(); setShowCheckout(false); setTimeout(focusSearch, 0) }}
         />
@@ -156,7 +157,7 @@ export default function SalesPage() {
       {showDiscount && (
         <DiscountDialog
           current={discount}
-          onApply={(h) => { setDiscount(h); setShowDiscount(false) }}
+          onApply={(d) => { setDiscount(d); setShowDiscount(false) }}
           onRemove={() => { setDiscount(null); setShowDiscount(false) }}
           onClose={() => setShowDiscount(false)}
         />
