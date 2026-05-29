@@ -12,6 +12,7 @@ import { paymentTotal, remaining } from '@/lib/cart'
 import type { CartItem, PaymentEntry } from '@/lib/cart'
 import type { CachedCustomer } from '@/lib/db'
 import type { SaleCalc, PrivilegedDiscount } from '@/lib/discount'
+import { HOLDER_LABELS } from '@/lib/discount'
 
 type PaymentMethod = 'cash' | 'card' | 'ewallet' | 'check' | 'charge' | 'gc'
 
@@ -161,7 +162,7 @@ export default function CheckoutDialog({ cart, customer, total, sale, discount, 
           return { label, detail: detail || undefined, amount: p.amount }
         })
         const holdersForReceipt = discount
-          ? discount.holders.map(h => ({ type: h.holderType, name: h.holderName, id: h.holderId }))
+          ? discount.holders.map(h => ({ type: HOLDER_LABELS[h.holderType], name: h.holderName, id: h.holderId }))
           : undefined
         const baseReceipt = {
           invoiceNumber: data.invoiceNumber ?? data.invoice?.invoiceNumber ?? '',
