@@ -92,6 +92,7 @@ export interface ThermalInvoiceData {
     quantity: number
     unitPrice: number | string
     total: number | string
+    discountAmount?: number
     product?: { name?: string }
   }>
 }
@@ -143,11 +144,14 @@ function buildEscPosReceipt(
       <Line />
 
       {/* ── Items ── */}
-      {(inv.details ?? []).map((d, i) =>
-        itemLines(d.product?.name ?? '', d.quantity, d.unitPrice, d.total, width).map((l, j) => (
-          <Text key={`${i}-${j}`}>{l}</Text>
-        )),
-      )}
+      {(inv.details ?? []).flatMap((d, i) => {
+        const lines = itemLines(d.product?.name ?? '', d.quantity, d.unitPrice, d.total, width)
+          .map((l, j) => <Text key={`it-${i}-${j}`}>{l}</Text>)
+        if (d.discountAmount != null && d.discountAmount > 0) {
+          lines.push(<Text key={`disc-${i}`}>{`    Less Disc: -${fmtAmount(d.discountAmount)}`}</Text>)
+        }
+        return lines
+      })}
 
       <Line />
 

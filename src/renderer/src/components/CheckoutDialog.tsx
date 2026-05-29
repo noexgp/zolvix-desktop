@@ -113,7 +113,7 @@ export default function CheckoutDialog({ cart, customer, total, sale, discount, 
           cart: cart.map(item => ({
             product: { id: item.product.id, price: item.product.price, name: item.product.name },
             quantity: item.quantity,
-            discount: 0,
+            discount: item.discountPct ?? 0,
             orderType: 'TAKE_OUT',
             modifiers: [],
             comboItems: [],
@@ -175,12 +175,18 @@ export default function CheckoutDialog({ cart, customer, total, sale, discount, 
           vat: sale.vat,
           discount: discount ? { label: 'Privileged Disc', amount: sale.discount + sale.vatExemptReduction } : undefined,
           holders: holdersForReceipt,
-          details: cart.map(item => ({
-            quantity: item.quantity,
-            unitPrice: item.product.price,
-            total: item.product.price * item.quantity,
-            product: { name: item.product.name },
-          })),
+          details: cart.map(item => {
+            const gross = item.product.price * item.quantity
+            const pct = item.discountPct ?? 0
+            const disc = Math.round(gross * pct / 100 * 100) / 100
+            return {
+              quantity: item.quantity,
+              unitPrice: item.product.price,
+              total: Math.round((gross - disc) * 100) / 100,
+              discountAmount: disc > 0 ? disc : undefined,
+              product: { name: item.product.name },
+            }
+          }),
         }
         if (discount) {
           await printThermal({ ...baseReceipt, withSignature: true, copyLabel: '*** ESTABLISHMENT COPY ***' })
