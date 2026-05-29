@@ -92,7 +92,8 @@ export default function SalesPage() {
       vatType: i.product.vatType ?? 'VATABLE',
       scDiscountExempt: i.product.scDiscountExempt ?? false,
     })),
-    discount?.holderType ?? null,
+    discount ? [{ holderType: discount.holderType }] : [],
+    1,
   )
   const total = sale.amountDue
   const discountLabel = discount

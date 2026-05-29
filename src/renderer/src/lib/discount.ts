@@ -24,7 +24,22 @@ export interface SaleCalc {
 const VAT_DIVISOR = 1.12
 const r2 = (n: number) => Math.round(n * 100) / 100
 
-export function computeSale(items: DiscountItem[], holderType: HolderType | null): SaleCalc {
+export interface Holder {
+  holderType: HolderType
+  holderName: string
+  holderId: string
+}
+
+export interface PrivilegedDiscount {
+  holders: Holder[]
+  partySize: number
+}
+
+export function computeSale(
+  items: DiscountItem[],
+  holders: { holderType: HolderType }[],
+  partySize: number,
+): SaleCalc {
   let vatableSales = 0
   let vatAmount = 0
   let vatExemptSales = 0
@@ -47,22 +62,29 @@ export function computeSale(items: DiscountItem[], holderType: HolderType | null
   let discount = 0
   let vatExemptReduction = 0
 
-  if (holderType === 'SC' || holderType === 'PWD') {
+  if (holders.length > 0) {
+    const party = Math.max(partySize, holders.length)
+    const scPwdCount = holders.filter(h => h.holderType === 'SC' || h.holderType === 'PWD').length
+    const spCount = holders.filter(h => h.holderType === 'SOLO_PARENT').length
+    const scPwdFraction = scPwdCount / party
+    const spFraction = spCount / party
+
     const eligible = items.filter(i => !i.scDiscountExempt)
     const isVatable = (t: string) => t !== 'EXEMPT' && t !== 'ZERO_RATED'
     const vatableEligible = eligible.filter(i => isVatable(i.vatType)).reduce((s, i) => s + i.lineTotal, 0)
     const exemptEligible = eligible.filter(i => !isVatable(i.vatType)).reduce((s, i) => s + i.lineTotal, 0)
     const netBase = vatableEligible / VAT_DIVISOR
-    // VAT is removed only from VATABLE eligible lines (their net moves to VAT-exempt sales).
-    vatExemptReduction = vatableEligible - netBase
-    // The 20% applies to the net of VATABLE plus the face value of EXEMPT/ZERO_RATED eligible lines.
-    discount = (netBase + exemptEligible) * 0.20
-    vatableSales -= netBase
-    vatAmount -= vatExemptReduction
-    vatExemptSales += netBase
-  } else if (holderType === 'SOLO_PARENT') {
-    const eligibleGross = items.filter(i => !i.scDiscountExempt).reduce((s, i) => s + i.lineTotal, 0)
-    discount = eligibleGross * 0.10
+
+    const scPwdDiscount = (netBase + exemptEligible) * 0.20 * scPwdFraction
+    const scPwdVatReduction = (vatableEligible - netBase) * scPwdFraction
+    const scPwdExemptNet = netBase * scPwdFraction
+    const spDiscount = (vatableEligible + exemptEligible) * 0.10 * spFraction
+
+    discount = scPwdDiscount + spDiscount
+    vatExemptReduction = scPwdVatReduction
+    vatableSales -= scPwdExemptNet
+    vatAmount -= scPwdVatReduction
+    vatExemptSales += scPwdExemptNet
   }
 
   return {
