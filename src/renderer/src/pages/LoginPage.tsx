@@ -28,6 +28,7 @@ export default function LoginPage() {
           setBusinessSettings({
             bypassApproval: bData.bypassApproval ?? false,
             name: bData.name ?? '',
+            lineDiscount: bData.enableLineDiscount === true,
           })
         }
       } catch { /* non-critical — app works without business settings */ }

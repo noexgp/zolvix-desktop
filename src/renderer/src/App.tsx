@@ -71,7 +71,7 @@ export default function App() {
             const bRes = await apiFetch('/api/settings/business')
             if (bRes.ok) {
               business = await bRes.json()
-              setBusinessSettings({ bypassApproval: !(business.requireSoApproval ?? true), name: business.name ?? '' })
+              setBusinessSettings({ bypassApproval: !(business.requireSoApproval ?? true), name: business.name ?? '', lineDiscount: business.enableLineDiscount === true })
             }
           } catch { /* non-critical */ }
           if (storedTerminalId) {

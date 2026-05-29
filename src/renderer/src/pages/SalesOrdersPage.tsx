@@ -44,7 +44,7 @@ export default function SalesOrdersPage() {
       if (!b) return
       const bypass = !(b.requireSoApproval ?? true)
       setBypassApproval(bypass)
-      setBusinessSettings({ bypassApproval: bypass, name: b.name ?? '' })
+      setBusinessSettings({ bypassApproval: bypass, name: b.name ?? '', lineDiscount: b.enableLineDiscount === true })
     }).catch(() => {})
   }, [setBusinessSettings])
 

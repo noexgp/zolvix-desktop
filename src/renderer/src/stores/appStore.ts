@@ -12,6 +12,7 @@ export interface NetworkPrinter {
 export interface BusinessSettings {
   bypassApproval: boolean
   name: string
+  lineDiscount: boolean
 }
 
 export interface TerminalConfig {
