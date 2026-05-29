@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { db } from '@/lib/db'
 import type { CachedProduct, CachedCustomer } from '@/lib/db'
 import type { CartItem } from '@/lib/cart'
+import { lineNet, pesoToPct, clampPct } from '@/lib/cart'
+import { useAppStore } from '@/stores/appStore'
 import { computeSale } from '@/lib/discount'
 import DiscountDialog from '@/components/DiscountDialog'
 import type { PrivilegedDiscount } from '@/lib/discount'
@@ -21,6 +23,8 @@ export default function SalesPage() {
   const [discount, setDiscount] = useState<PrivilegedDiscount | null>(null)
   const [showDiscount, setShowDiscount] = useState(false)
   const [biz, setBiz] = useState<{ businessName: string; address: string; tin: string; vatRegistered: boolean } | null>(null)
+  const businessSettings = useAppStore(s => s.businessSettings)
+  const lineDiscountEnabled = businessSettings?.lineDiscount ?? false
   const searchRef = useRef<HTMLInputElement>(null)
 
   const focusSearch = useCallback(() => {
@@ -87,9 +91,22 @@ export default function SalesPage() {
     setDiscount(null)
   }, [])
 
+  const setLineDiscount = (productIds: string[], mode: 'PESO' | 'PERCENT', value: number) => {
+    const ids = new Set(productIds)
+    setCart(prev => prev.map(it => {
+      if (!ids.has(it.product.id)) return it
+      const gross = Math.round(it.product.price * it.quantity * 100) / 100
+      const pct = mode === 'PERCENT' ? clampPct(value) : pesoToPct(value, gross)
+      return { ...it, discountPct: pct }
+    }))
+  }
+  const clearLineDiscount = (productId: string) => {
+    setCart(prev => prev.map(it => (it.product.id === productId ? { ...it, discountPct: undefined } : it)))
+  }
+
   const sale = computeSale(
     cart.map(i => ({
-      lineTotal: Math.round(i.product.price * i.quantity * 100) / 100,
+      lineTotal: lineNet(i),
       vatType: i.product.vatType ?? 'VATABLE',
       scDiscountExempt: i.product.scDiscountExempt ?? false,
     })),
@@ -144,6 +161,9 @@ export default function SalesPage() {
           onCheckout={() => setShowCheckout(true)}
           onOpenDiscount={() => setShowDiscount(true)}
           onRemoveDiscount={() => setDiscount(null)}
+          lineDiscountEnabled={lineDiscountEnabled}
+          onSetLineDiscount={setLineDiscount}
+          onClearLineDiscount={clearLineDiscount}
         />
       </div>
       </div>
@@ -163,7 +183,7 @@ export default function SalesPage() {
       {showDiscount && (
         <DiscountDialog
           current={discount}
-          onApply={(d) => { setDiscount(d); setShowDiscount(false) }}
+          onApply={(d) => { setCart(prev => prev.map(it => ({ ...it, discountPct: undefined }))); setDiscount(d); setShowDiscount(false) }}
           onRemove={() => { setDiscount(null); setShowDiscount(false) }}
           onClose={() => setShowDiscount(false)}
         />
