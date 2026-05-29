@@ -39,10 +39,22 @@ describe('computeSale — SC/PWD', () => {
     expect(r.vatExemptReduction).toBeCloseTo(12, 2)
     expect(r.amountDue).toBeCloseTo(130, 2)
   })
-  it('does not discount an EXEMPT item', () => {
+  it('gives 20% off an EXEMPT item at face value with no VAT step-down', () => {
     const r = computeSale([exempt(112)], 'SC')
-    expect(r.discount).toBe(0)
-    expect(r.amountDue).toBeCloseTo(112, 2)
+    expect(r.discount).toBeCloseTo(22.4, 2)
+    expect(r.vatExemptReduction).toBeCloseTo(0, 2)
+    expect(r.amountDue).toBeCloseTo(89.6, 2)
+    expect(r.vat.vatExemptSales).toBeCloseTo(112, 2)
+  })
+  it('mixed VATABLE + EXEMPT: 20% on (VATABLE net + EXEMPT face), VAT removed from VATABLE only', () => {
+    const r = computeSale([vatable(112), exempt(50)], 'SC')
+    // 20% × (100 net + 50 exempt face) = 30; VAT 12 removed from the VATABLE line only
+    expect(r.discount).toBeCloseTo(30, 2)
+    expect(r.vatExemptReduction).toBeCloseTo(12, 2)
+    expect(r.amountDue).toBeCloseTo(120, 2)
+    expect(r.vat.vatableSales).toBeCloseTo(0, 2)
+    expect(r.vat.vatAmount).toBeCloseTo(0, 2)
+    expect(r.vat.vatExemptSales).toBeCloseTo(150, 2)
   })
 })
 

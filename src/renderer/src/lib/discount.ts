@@ -48,12 +48,15 @@ export function computeSale(items: DiscountItem[], holderType: HolderType | null
   let vatExemptReduction = 0
 
   if (holderType === 'SC' || holderType === 'PWD') {
-    const eligibleBase = items
-      .filter(i => i.vatType !== 'EXEMPT' && i.vatType !== 'ZERO_RATED' && !i.scDiscountExempt)
-      .reduce((s, i) => s + i.lineTotal, 0)
-    const netBase = eligibleBase / VAT_DIVISOR
-    vatExemptReduction = eligibleBase - netBase
-    discount = netBase * 0.20
+    const eligible = items.filter(i => !i.scDiscountExempt)
+    const isVatable = (t: string) => t !== 'EXEMPT' && t !== 'ZERO_RATED'
+    const vatableEligible = eligible.filter(i => isVatable(i.vatType)).reduce((s, i) => s + i.lineTotal, 0)
+    const exemptEligible = eligible.filter(i => !isVatable(i.vatType)).reduce((s, i) => s + i.lineTotal, 0)
+    const netBase = vatableEligible / VAT_DIVISOR
+    // VAT is removed only from VATABLE eligible lines (their net moves to VAT-exempt sales).
+    vatExemptReduction = vatableEligible - netBase
+    // The 20% applies to the net of VATABLE plus the face value of EXEMPT/ZERO_RATED eligible lines.
+    discount = (netBase + exemptEligible) * 0.20
     vatableSales -= netBase
     vatAmount -= vatExemptReduction
     vatExemptSales += netBase
