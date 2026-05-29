@@ -98,7 +98,13 @@ export default function SalesPage() {
   )
   const total = sale.amountDue
   const discountLabel = discount
-    ? `${discount.holders.length} holder(s) · party of ${discount.partySize}`
+    ? `${(['SC', 'PWD', 'SOLO_PARENT'] as const)
+        .map(t => {
+          const n = discount.holders.filter(h => h.holderType === t).length
+          return n ? `${n} ${t === 'SOLO_PARENT' ? 'SP' : t}` : ''
+        })
+        .filter(Boolean)
+        .join(' / ')} · party of ${discount.partySize}`
     : null
 
   return (
