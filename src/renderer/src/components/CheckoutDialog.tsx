@@ -11,8 +11,7 @@ import { cn } from '@/lib/utils'
 import { paymentTotal, remaining } from '@/lib/cart'
 import type { CartItem, PaymentEntry } from '@/lib/cart'
 import type { CachedCustomer } from '@/lib/db'
-import type { SaleCalc, HolderType } from '@/lib/discount'
-import { HOLDER_LABELS } from '@/lib/discount'
+import type { SaleCalc, PrivilegedDiscount } from '@/lib/discount'
 
 type PaymentMethod = 'cash' | 'card' | 'ewallet' | 'check' | 'charge' | 'gc'
 
@@ -38,7 +37,7 @@ interface Props {
   customer: CachedCustomer | null
   total: number
   sale: SaleCalc
-  holder: { holderType: HolderType; holderName: string; holderId: string } | null
+  discount: PrivilegedDiscount | null
   onClose: () => void
   onSuccess: () => void
 }
@@ -47,7 +46,7 @@ function newPayment(method: PaymentMethod, amount: number): PaymentEntry {
   return { id: nanoid(), method, amount }
 }
 
-export default function CheckoutDialog({ cart, customer, total, sale, holder, onClose, onSuccess }: Props) {
+export default function CheckoutDialog({ cart, customer, total, sale, discount, onClose, onSuccess }: Props) {
   const [payments, setPayments] = useState<PaymentEntry[]>([newPayment('cash', total)])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -136,8 +135,8 @@ export default function CheckoutDialog({ cart, customer, total, sale, holder, on
           deliveryFee: 0,
           withholdingTax: 0,
           ewtMode: 'DEDUCT',
-          holders: holder ? [{ holderType: holder.holderType, holderName: holder.holderName, holderId: holder.holderId, sequence: 1 }] : [],
-          partySize: 1,
+          holders: discount ? discount.holders.map((h, i) => ({ holderType: h.holderType, holderName: h.holderName, holderId: h.holderId, sequence: i + 1 })) : [],
+          partySize: discount?.partySize ?? 1,
         }),
       })
       if (!res.ok) {
@@ -161,7 +160,10 @@ export default function CheckoutDialog({ cart, customer, total, sale, holder, on
           }
           return { label, detail: detail || undefined, amount: p.amount }
         })
-        await printThermal({
+        const holdersForReceipt = discount
+          ? discount.holders.map(h => ({ type: h.holderType, name: h.holderName, id: h.holderId }))
+          : undefined
+        const baseReceipt = {
           invoiceNumber: data.invoiceNumber ?? data.invoice?.invoiceNumber ?? '',
           totalAmount: total,
           createdAt: data.createdAt ?? new Date().toISOString(),
@@ -170,15 +172,21 @@ export default function CheckoutDialog({ cart, customer, total, sale, holder, on
           cashTendered: cashReceived > 0 ? cashReceived : undefined,
           change: changeDue > 0 ? changeDue : undefined,
           vat: sale.vat,
-          discount: holder ? { label: `${HOLDER_LABELS[holder.holderType]} Disc`, amount: sale.discount + sale.vatExemptReduction } : undefined,
-          holder: holder ? { type: HOLDER_LABELS[holder.holderType], name: holder.holderName, id: holder.holderId } : undefined,
+          discount: discount ? { label: 'Privileged Disc', amount: sale.discount + sale.vatExemptReduction } : undefined,
+          holders: holdersForReceipt,
           details: cart.map(item => ({
             quantity: item.quantity,
             unitPrice: item.product.price,
             total: item.product.price * item.quantity,
             product: { name: item.product.name },
           })),
-        })
+        }
+        if (discount) {
+          await printThermal({ ...baseReceipt, withSignature: true, copyLabel: '*** ESTABLISHMENT COPY ***' })
+          await printThermal({ ...baseReceipt, withSignature: false, copyLabel: '*** CUSTOMER COPY ***' })
+        } else {
+          await printThermal(baseReceipt)
+        }
       } catch {
         // receipt print failure is non-fatal
       }
