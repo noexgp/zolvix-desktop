@@ -85,7 +85,9 @@ export interface ThermalInvoiceData {
   payments?: Array<{ label?: string; detail?: string; amount: number | string; method?: string }>
   vat?: { vatableSales: number; vatAmount: number; vatExemptSales: number; zeroRatedSales: number }
   discount?: { label: string; amount: number }
-  holder?: { type: string; name: string; id: string }
+  holders?: Array<{ type: string; name: string; id: string }>
+  withSignature?: boolean
+  copyLabel?: string
   details?: Array<{
     quantity: number
     unitPrice: number | string
@@ -188,12 +190,23 @@ function buildEscPosReceipt(
         <Text>{kv('Change', fmtAmount(inv.change), width)}</Text>
       )}
 
-      {inv.holder && (
+      {inv.holders && inv.holders.length > 0 && (
         <>
           <Br />
-          <Text>{`${inv.holder.type} Name: ${inv.holder.name}`}</Text>
-          <Text>{`ID No: ${inv.holder.id}`}</Text>
-          <Text>Signature: ____________________</Text>
+          {inv.holders.flatMap((hld, idx) => {
+            const lines = [
+              <Text key={`hn${idx}`}>{`${hld.type} Name: ${hld.name}`}</Text>,
+              <Text key={`hi${idx}`}>{`ID No: ${hld.id}`}</Text>,
+            ]
+            if (inv.withSignature) lines.push(<Text key={`hs${idx}`}>Signature: ____________________</Text>)
+            return lines
+          })}
+        </>
+      )}
+      {inv.copyLabel && (
+        <>
+          <Br />
+          <Text align="center">{inv.copyLabel}</Text>
         </>
       )}
 
