@@ -4,7 +4,7 @@ import type { CachedProduct, CachedCustomer } from '@/lib/db'
 import type { CartItem } from '@/lib/cart'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { Search, Plus, PackageX } from 'lucide-react'
+import { Search, Plus, PackageX, Loader2 } from 'lucide-react'
 import SearchableSelect from '@/components/SearchableSelect'
 
 interface Props {
@@ -14,6 +14,9 @@ interface Props {
   cart: CartItem[]
   categoryNames: Record<string, string>
   searchRef?: RefObject<HTMLInputElement | null>
+  search: string
+  onSearchChange: (value: string) => void
+  loading?: boolean
   onAddToCart: (product: CachedProduct) => void
   onSelectCustomer: (customer: CachedCustomer | null) => void
 }
@@ -25,8 +28,7 @@ function fmt(n: number) {
 const LOW_STOCK = 5
 const GRID_COLS = 4
 
-export default function ProductGrid({ products, customers, customer, cart, categoryNames, searchRef, onAddToCart, onSelectCustomer }: Props) {
-  const [search, setSearch] = useState('')
+export default function ProductGrid({ products, customers, customer, cart, categoryNames, searchRef, search, onSearchChange, loading, onAddToCart, onSelectCustomer }: Props) {
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [highlight, setHighlight] = useState(0)
   const [searchFocused, setSearchFocused] = useState(false)
@@ -47,14 +49,12 @@ export default function ProductGrid({ products, customers, customer, cart, categ
   }, [cart])
 
   const filtered = useMemo(() => {
-    const q = search.toLowerCase()
     return products.filter(p => {
       if (!p.isActive) return false
       if (categoryId && p.categoryId !== categoryId) return false
-      if (q) return p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.barcode ?? '').includes(q)
       return true
     })
-  }, [products, search, categoryId])
+  }, [products, categoryId])
 
   const customerItems = useMemo(() =>
     customers.map(c => ({ id: c.id, label: c.name })), [customers])
@@ -91,11 +91,17 @@ export default function ProductGrid({ products, customers, customer, cart, categ
       <div className="flex items-center gap-2 px-3 py-2.5 bg-card border-b border-border shrink-0">
         <div className="relative flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+          {loading && (
+            <Loader2
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-muted-foreground pointer-events-none"
+              aria-label="Loading products"
+            />
+          )}
           <Input
             ref={searchRef}
             placeholder="Search products or scan barcode...  (F1)"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => onSearchChange(e.target.value)}
             onKeyDown={onSearchKeyDown}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
