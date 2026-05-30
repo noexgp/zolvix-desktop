@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Search, Plus, PackageX, Loader2 } from 'lucide-react'
 import SearchableSelect from '@/components/SearchableSelect'
 import { isLikelyCode, scanProduct } from '@/hooks/useSalesProducts'
+import { gridColsFromComputedStyle } from '@/lib/grid-cols'
 
 interface Props {
   products: CachedProduct[]
@@ -27,13 +28,13 @@ function fmt(n: number) {
 }
 
 const LOW_STOCK = 5
-const GRID_COLS = 4
 
 export default function ProductGrid({ products, customers, customer, cart, categoryNames, searchRef, search, onSearchChange, loading, onAddToCart, onSelectCustomer }: Props) {
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [highlight, setHighlight] = useState(0)
   const [searchFocused, setSearchFocused] = useState(false)
   const gridRef = useRef<HTMLDivElement>(null)
+  const [gridCols, setGridCols] = useState(4)
 
   const categories = useMemo(() => {
     const map = new Map<string, string>()
@@ -69,6 +70,17 @@ export default function ProductGrid({ products, customers, customer, cart, categ
     gridRef.current?.querySelector(`[data-idx="${highlight}"]`)?.scrollIntoView({ block: 'nearest' })
   }, [highlight, searchFocused])
 
+  // Track the actual rendered column count via ResizeObserver.
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
+    const update = () => setGridCols(gridColsFromComputedStyle(getComputedStyle(el).gridTemplateColumns))
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
   async function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
     // Enter runs first so a barcode scan can race the debounced search.
     if (e.key === 'Enter') {
@@ -97,8 +109,8 @@ export default function ProductGrid({ products, customers, customer, cart, categ
     const last = filtered.length - 1
     if (e.key === 'ArrowRight') { e.preventDefault(); setHighlight(i => Math.min(last, i + 1)) }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); setHighlight(i => Math.max(0, i - 1)) }
-    else if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(i => Math.min(last, i + GRID_COLS)) }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(i => Math.max(0, i - GRID_COLS)) }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(i => Math.min(last, i + gridCols)) }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(i => Math.max(0, i - gridCols)) }
   }
 
   return (
@@ -168,7 +180,7 @@ export default function ProductGrid({ products, customers, customer, cart, categ
       </div>
 
       {/* Product grid */}
-      <div ref={gridRef} className="flex-1 overflow-y-auto p-3 grid grid-cols-4 gap-2.5 content-start">
+      <div ref={gridRef} className="flex-1 overflow-y-auto p-3 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2.5 content-start">
         {filtered.map((product, idx) => {
           const qty = cartQty.get(product.id) ?? 0
           const inCart = qty > 0
