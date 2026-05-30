@@ -136,7 +136,7 @@ export default function SalesPage() {
         </header>
       )}
       <div className="flex flex-1 min-h-0 overflow-hidden">
-      <div className="flex-[3] min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col">
         <ProductGrid
           products={products}
           customers={customers}
@@ -151,7 +151,7 @@ export default function SalesPage() {
           onSelectCustomer={setCustomer}
         />
       </div>
-      <div className="flex-1 min-w-0 flex flex-col border-l border-border">
+      <div className="basis-[400px] shrink-0 min-w-[320px] max-w-[420px] flex flex-col border-l border-border">
         <CartSidebar
           cart={cart}
           customer={customer}
