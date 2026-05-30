@@ -158,6 +158,7 @@ export default function ProductGrid({ products, customers, customer, cart, categ
             placeholder="Walk-in"
             className="h-9 text-sm"
             onSearchChange={setCustomerSearch}
+            onAfterSelect={() => searchRef?.current?.focus()}
           />
         </div>
       </div>

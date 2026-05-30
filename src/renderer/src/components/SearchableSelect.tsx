@@ -10,9 +10,11 @@ interface Props {
   className?: string
   /** When provided, the parent owns filtering: this component stops its internal `.includes()` filter and just renders `items` as-is. Also called whenever the user clears/types in the picker. */
   onSearchChange?: (q: string) => void
+  /** Called shortly after a selection. When provided, REPLACES the default "focus next focusable element" behavior. Useful when the parent wants focus to land on a specific input. */
+  onAfterSelect?: () => void
 }
 
-export default function SearchableSelect({ id, value, onChange, items, placeholder, disabled, className, onSearchChange }: Props) {
+export default function SearchableSelect({ id, value, onChange, items, placeholder, disabled, className, onSearchChange, onAfterSelect }: Props) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
@@ -47,6 +49,10 @@ export default function SearchableSelect({ id, value, onChange, items, placehold
   function selectItem(item: { id: string; label: string }) {
     onChange(item.id, item.label)
     setQuery(''); setOpen(false); setHighlightIndex(-1); onSearchChange?.('')
+    if (onAfterSelect) {
+      setTimeout(onAfterSelect, 0)
+      return
+    }
     setTimeout(() => {
       const focusable = Array.from(document.querySelectorAll<HTMLElement>(
         'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
