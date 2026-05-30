@@ -8,9 +8,11 @@ interface Props {
   placeholder: string
   disabled?: boolean
   className?: string
+  /** When provided, the parent owns filtering: this component stops its internal `.includes()` filter and just renders `items` as-is. Also called whenever the user clears/types in the picker. */
+  onSearchChange?: (q: string) => void
 }
 
-export default function SearchableSelect({ id, value, onChange, items, placeholder, disabled, className }: Props) {
+export default function SearchableSelect({ id, value, onChange, items, placeholder, disabled, className, onSearchChange }: Props) {
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const [highlightIndex, setHighlightIndex] = useState(-1)
@@ -21,14 +23,14 @@ export default function SearchableSelect({ id, value, onChange, items, placehold
   const selected = items.find(i => i.id === value)
   const displayValue = open ? query : (selected?.label ?? '')
 
-  const filtered = query
-    ? items.filter(i => i.label.toLowerCase().includes(query.toLowerCase()))
-    : items
+  const filtered = onSearchChange
+    ? items
+    : query ? items.filter(i => i.label.toLowerCase().includes(query.toLowerCase())) : items
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false); setQuery(''); setHighlightIndex(-1)
+        setOpen(false); setQuery(''); setHighlightIndex(-1); onSearchChange?.('')
       }
     }
     document.addEventListener('mousedown', onClickOutside)
@@ -44,7 +46,7 @@ export default function SearchableSelect({ id, value, onChange, items, placehold
 
   function selectItem(item: { id: string; label: string }) {
     onChange(item.id, item.label)
-    setQuery(''); setOpen(false); setHighlightIndex(-1)
+    setQuery(''); setOpen(false); setHighlightIndex(-1); onSearchChange?.('')
     setTimeout(() => {
       const focusable = Array.from(document.querySelectorAll<HTMLElement>(
         'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled])'
@@ -63,7 +65,7 @@ export default function SearchableSelect({ id, value, onChange, items, placehold
       e.preventDefault()
       const target = highlightIndex >= 0 ? filtered[highlightIndex] : filtered[0]
       if (target) selectItem(target)
-    } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setHighlightIndex(-1) }
+    } else if (e.key === 'Escape') { setOpen(false); setQuery(''); setHighlightIndex(-1); onSearchChange?.('') }
   }
 
   return (
@@ -76,8 +78,8 @@ export default function SearchableSelect({ id, value, onChange, items, placehold
         disabled={disabled}
         placeholder={placeholder}
         autoComplete="off"
-        onFocus={() => { setOpen(true); setQuery(''); setHighlightIndex(-1) }}
-        onChange={e => { setQuery(e.target.value); setOpen(true); setHighlightIndex(0) }}
+        onFocus={() => { setOpen(true); setQuery(''); setHighlightIndex(-1); onSearchChange?.('') }}
+        onChange={e => { setQuery(e.target.value); setOpen(true); setHighlightIndex(0); onSearchChange?.(e.target.value) }}
         onKeyDown={handleKeyDown}
         className="w-full bg-card border border-border text-foreground text-sm rounded p-2 focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
       />
