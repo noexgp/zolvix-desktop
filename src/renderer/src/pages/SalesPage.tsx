@@ -11,9 +11,9 @@ import { apiFetch } from '@/lib/api'
 import ProductGrid from '@/components/ProductGrid'
 import CartSidebar from '@/components/CartSidebar'
 import CheckoutDialog from '@/components/CheckoutDialog'
+import { useSalesProducts } from '@/hooks/useSalesProducts'
 
 export default function SalesPage() {
-  const [products, setProducts] = useState<CachedProduct[]>([])
   const [customers, setCustomers] = useState<CachedCustomer[]>([])
   const [categoryNames, setCategoryNames] = useState<Record<string, string>>({})
   const [cart, setCart] = useState<CartItem[]>([])
@@ -23,6 +23,8 @@ export default function SalesPage() {
   const [discount, setDiscount] = useState<PrivilegedDiscount | null>(null)
   const [showDiscount, setShowDiscount] = useState(false)
   const [biz, setBiz] = useState<{ businessName: string; address: string; tin: string; vatRegistered: boolean } | null>(null)
+  const [search, setSearch] = useState('')
+  const { products, loading } = useSalesProducts({ search })
   const businessSettings = useAppStore(s => s.businessSettings)
   const lineDiscountEnabled = businessSettings?.lineDiscount ?? false
   const searchRef = useRef<HTMLInputElement>(null)
@@ -35,7 +37,6 @@ export default function SalesPage() {
   }, [])
 
   useEffect(() => {
-    db.products.toArray().then(setProducts)
     db.customers.filter(c => c.isActive).toArray().then(setCustomers)
     // Live category names (id -> name); falls back to cached categoryName/id if offline
     apiFetch('/api/category?limit=500')
@@ -143,6 +144,9 @@ export default function SalesPage() {
           cart={cart}
           categoryNames={categoryNames}
           searchRef={searchRef}
+          search={search}
+          onSearchChange={setSearch}
+          loading={loading}
           onAddToCart={addToCart}
           onSelectCustomer={setCustomer}
         />
