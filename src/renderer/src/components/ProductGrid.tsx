@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { Search, Plus, PackageX, Loader2 } from 'lucide-react'
 import SearchableSelect from '@/components/SearchableSelect'
 import { isLikelyCode, scanProduct } from '@/hooks/useSalesProducts'
+import { useCustomerSearch } from '@/hooks/useCustomerSearch'
 import { gridColsFromComputedStyle } from '@/lib/grid-cols'
 
 interface Props {
@@ -33,6 +34,8 @@ export default function ProductGrid({ products, customers, customer, cart, categ
   const [categoryId, setCategoryId] = useState<string | null>(null)
   const [highlight, setHighlight] = useState(0)
   const [searchFocused, setSearchFocused] = useState(false)
+  const [customerSearch, setCustomerSearch] = useState('')
+  const { customers: searchedCustomers } = useCustomerSearch({ search: customerSearch })
   const gridRef = useRef<HTMLDivElement>(null)
   const [gridCols, setGridCols] = useState(4)
 
@@ -59,7 +62,7 @@ export default function ProductGrid({ products, customers, customer, cart, categ
   }, [products, categoryId])
 
   const customerItems = useMemo(() =>
-    customers.map(c => ({ id: c.id, label: c.name })), [customers])
+    searchedCustomers.map(c => ({ id: c.id, label: c.name })), [searchedCustomers])
 
   // Reset the keyboard highlight to the top match whenever the result set changes.
   useEffect(() => { setHighlight(0) }, [search, categoryId])
@@ -140,11 +143,15 @@ export default function ProductGrid({ products, customers, customer, cart, categ
             value={customer?.id ?? ''}
             onChange={(id, _label) => {
               if (!id) { onSelectCustomer(null); return }
-              onSelectCustomer(customers.find(c => c.id === id) ?? null)
+              onSelectCustomer(
+                customers.find(c => c.id === id)
+                ?? (searchedCustomers.find(c => c.id === id) ?? null)
+              )
             }}
             items={[{ id: '', label: 'Walk-in' }, ...customerItems]}
             placeholder="Walk-in"
             className="h-9 text-sm"
+            onSearchChange={setCustomerSearch}
           />
         </div>
       </div>
