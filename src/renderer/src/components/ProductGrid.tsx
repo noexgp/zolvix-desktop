@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { Search, Plus, PackageX, Loader2 } from 'lucide-react'
 import SearchableSelect from '@/components/SearchableSelect'
+import { isLikelyCode, scanProduct } from '@/hooks/useSalesProducts'
 
 interface Props {
   products: CachedProduct[]
@@ -68,21 +69,36 @@ export default function ProductGrid({ products, customers, customer, cart, categ
     gridRef.current?.querySelector(`[data-idx="${highlight}"]`)?.scrollIntoView({ block: 'nearest' })
   }, [highlight, searchFocused])
 
-  function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+  async function onSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    // Enter runs first so a barcode scan can race the debounced search.
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      const q = search.trim()
+      if (!q) return
+      if (isLikelyCode(q)) {
+        const scanned = await scanProduct(q)
+        if (scanned && scanned.stock !== 0) {
+          onAddToCart(scanned)
+          onSearchChange('')
+          e.currentTarget.select()
+          return
+        }
+      }
+      // Fall through: existing highlighted-Enter behavior.
+      const p = filtered[highlight]
+      if (p && p.stock !== 0) {
+        onAddToCart(p)
+        e.currentTarget.select()
+      }
+      return
+    }
+    // Arrow navigation needs something visible.
     if (filtered.length === 0) return
     const last = filtered.length - 1
     if (e.key === 'ArrowRight') { e.preventDefault(); setHighlight(i => Math.min(last, i + 1)) }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); setHighlight(i => Math.max(0, i - 1)) }
     else if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight(i => Math.min(last, i + GRID_COLS)) }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight(i => Math.max(0, i - GRID_COLS)) }
-    else if (e.key === 'Enter') {
-      e.preventDefault()
-      const p = filtered[highlight]
-      if (p && p.stock !== 0) {
-        onAddToCart(p)
-        e.currentTarget.select()
-      }
-    }
   }
 
   return (
