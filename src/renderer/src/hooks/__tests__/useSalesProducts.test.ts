@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildProductSearchUrl, fallbackFilter } from '../useSalesProducts'
+import { buildProductSearchUrl, fallbackFilter, isLikelyCode } from '../useSalesProducts'
 import type { CachedProduct } from '@/lib/db'
 
 const p = (over: Partial<CachedProduct>): CachedProduct => ({
@@ -48,5 +48,28 @@ describe('fallbackFilter', () => {
   it('caps results at 30', () => {
     const many = Array.from({ length: 50 }, (_, i) => p({ id: String(i), name: `Item ${i}`, sku: `S${i}` }))
     expect(fallbackFilter(many, '').length).toBe(30)
+  })
+})
+
+describe('isLikelyCode', () => {
+  it('returns false for empty or all-whitespace input', () => {
+    expect(isLikelyCode('')).toBe(false)
+    expect(isLikelyCode('   ')).toBe(false)
+  })
+  it('returns true for a single token', () => {
+    expect(isLikelyCode('a')).toBe(true)
+    expect(isLikelyCode('apple')).toBe(true)
+    expect(isLikelyCode('1234567890')).toBe(true)
+    expect(isLikelyCode('SKU-001')).toBe(true)
+  })
+  it('returns true after trimming leading/trailing whitespace', () => {
+    expect(isLikelyCode('  apple  ')).toBe(true)
+  })
+  it('returns false when there is an embedded space', () => {
+    expect(isLikelyCode('apple pie')).toBe(false)
+    expect(isLikelyCode('sku 001')).toBe(false)
+  })
+  it('returns false on whitespace-only characters (tab/newline)', () => {
+    expect(isLikelyCode('\t\n')).toBe(false)
   })
 })

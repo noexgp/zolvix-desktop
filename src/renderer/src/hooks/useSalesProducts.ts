@@ -73,3 +73,29 @@ export function useSalesProducts({ search }: { search: string }): { products: Ca
 
   return { products, loading }
 }
+
+export function isLikelyCode(text: string): boolean {
+  const q = text.trim()
+  return q.length > 0 && !/\s/.test(q)
+}
+
+export async function scanProduct(q: string): Promise<CachedProduct | null> {
+  const text = q.trim()
+  if (!text) return null
+  try {
+    const res = await apiFetch(`/api/product/scan?q=${encodeURIComponent(text)}`)
+    if (res.ok) {
+      const data = (await res.json()) as RawProduct | null
+      // Strict accept: only treat as a real scan if barcode or SKU matches exactly.
+      // Blocks the server's name-contains fallback from silently auto-adding.
+      if (data && (data.barcode === text || data.sku === text)) {
+        return flatten(data)
+      }
+    }
+  } catch {
+    // fall through to offline lookup
+  }
+  // Offline / strict-rejected fallback: exact match against the cached set.
+  const all = await db.products.toArray()
+  return all.find(p => p.isActive && (p.barcode === text || p.sku === text)) ?? null
+}
