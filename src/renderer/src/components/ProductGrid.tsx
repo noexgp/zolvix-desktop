@@ -105,7 +105,7 @@ export default function ProductGrid({ products, customers, customer, cart, categ
             onKeyDown={onSearchKeyDown}
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
-            className="h-9 text-sm pl-8"
+            className="h-9 text-sm pl-8 pr-8"
           />
         </div>
         <div className="w-52 shrink-0">

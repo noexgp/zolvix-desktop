@@ -6,6 +6,16 @@ import type { CachedProduct } from '@/lib/db'
 const DEBOUNCE_MS = 250
 const MAX_FALLBACK = 30
 
+type RawProduct = CachedProduct & { category?: { id: string; name: string } | null }
+
+function flatten(p: RawProduct): CachedProduct {
+  return {
+    ...p,
+    categoryId: p.categoryId ?? p.category?.id ?? '',
+    categoryName: p.categoryName ?? p.category?.name ?? '',
+  }
+}
+
 export function buildProductSearchUrl(search: string): string {
   const q = search.trim()
   if (!q) return '/api/product/cart?topSellers=true'
@@ -14,13 +24,14 @@ export function buildProductSearchUrl(search: string): string {
 
 export function fallbackFilter(cache: CachedProduct[], search: string): CachedProduct[] {
   const q = search.trim().toLowerCase()
-  if (!q) return cache.slice(0, MAX_FALLBACK)
-  return cache
-    .filter(p => p.isActive && (
+  const active = cache.filter(p => p.isActive)
+  if (!q) return active.slice(0, MAX_FALLBACK)
+  return active
+    .filter(p =>
       p.name.toLowerCase().includes(q) ||
       p.sku.toLowerCase().includes(q) ||
-      (p.barcode ?? '').toLowerCase().includes(q)
-    ))
+      (p.barcode ?? '').toLowerCase().includes(q),
+    )
     .slice(0, MAX_FALLBACK)
 }
 
@@ -43,7 +54,8 @@ export function useSalesProducts({ search }: { search: string }): { products: Ca
         if (!res.ok) throw new Error('fetch failed')
         const data = await res.json()
         if (cancelled) return
-        setProducts(Array.isArray(data) ? (data as CachedProduct[]) : [])
+        const list = Array.isArray(data) ? (data as RawProduct[]) : []
+        setProducts(list.map(flatten))
       } catch {
         if (cancelled) return
         const cached = await loadCachedFallback(search)

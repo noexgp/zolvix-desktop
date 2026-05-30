@@ -30,8 +30,8 @@ describe('fallbackFilter', () => {
     p({ id: '3', name: 'Inactive Item', sku: 'X', isActive: false }),
     p({ id: '4', name: 'Apple Pie', sku: 'AP-3' }),
   ]
-  it('empty query → first 30 active items, in input order', () => {
-    expect(fallbackFilter(cache, '').map(x => x.id)).toEqual(['1', '2', '3', '4'])
+  it('empty query → first 30 ACTIVE items, in input order', () => {
+    expect(fallbackFilter(cache, '').map(x => x.id)).toEqual(['1', '2', '4'])
   })
   it('matches name (case-insensitive)', () => {
     expect(fallbackFilter(cache, 'apple').map(x => x.id).sort()).toEqual(['1', '4'])
