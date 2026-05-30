@@ -42,11 +42,13 @@ export function useCustomerSearch({ search }: { search: string }): { customers: 
         const res = await apiFetch(url)
         if (cancelled) return
         if (!res.ok) throw new Error('fetch failed')
-        const data = await res.json()
+        const payload = await res.json()
         if (cancelled) return
-        const list: CachedCustomer[] = Array.isArray(data)
-          ? data
-          : Array.isArray(data?.customers) ? data.customers : []
+        const list: CachedCustomer[] = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.data) ? payload.data
+          : Array.isArray(payload?.customers) ? payload.customers
+          : []
         setCustomers(list)
       } catch {
         if (cancelled) return
