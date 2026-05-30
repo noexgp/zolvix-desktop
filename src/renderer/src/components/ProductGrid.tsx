@@ -148,7 +148,13 @@ export default function ProductGrid({ products, customers, customer, cart, categ
                 ?? (searchedCustomers.find(c => c.id === id) ?? null)
               )
             }}
-            items={[{ id: '', label: 'Walk-in' }, ...customerItems]}
+            items={[
+              { id: '', label: 'Walk-in' },
+              ...(customer && !customerItems.some(c => c.id === customer.id)
+                ? [{ id: customer.id, label: customer.name }]
+                : []),
+              ...customerItems,
+            ]}
             placeholder="Walk-in"
             className="h-9 text-sm"
             onSearchChange={setCustomerSearch}
