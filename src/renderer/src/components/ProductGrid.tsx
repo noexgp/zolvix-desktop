@@ -86,17 +86,16 @@ export default function ProductGrid({ products, customers, customer, cart, categ
     if (e.key === 'Enter') {
       e.preventDefault()
       const q = search.trim()
-      if (!q) return
-      if (isLikelyCode(q)) {
+      if (q && isLikelyCode(q)) {
         const scanned = await scanProduct(q)
         if (scanned && scanned.stock !== 0) {
           onAddToCart(scanned)
           onSearchChange('')
-          e.currentTarget.select()
+          searchRef?.current?.select()
           return
         }
       }
-      // Fall through: existing highlighted-Enter behavior.
+      // Fall through: highlighted-Enter behavior (works even when search is empty).
       const p = filtered[highlight]
       if (p && p.stock !== 0) {
         onAddToCart(p)
